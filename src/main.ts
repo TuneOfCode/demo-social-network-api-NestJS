@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { TransformInterceptor } from './interceptors/transform.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,10 +13,13 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      transform: true,
     }),
   );
+  app.useGlobalInterceptors(new TransformInterceptor());
+
   try {
-    await app.listen(8888);
+    await app.listen(process.env.APP_PORT || 3000);
     console.log('Server is running ', await app.getUrl());
   } catch (error) {
     console.log('Server is ' + error);
