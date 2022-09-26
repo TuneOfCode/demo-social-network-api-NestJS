@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './exceptions/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
 
 async function bootstrap() {
@@ -17,7 +18,7 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(new TransformInterceptor());
-
+  app.useGlobalFilters(new HttpExceptionFilter());
   try {
     await app.listen(process.env.APP_PORT || 3000);
     console.log('Server is running ', await app.getUrl());

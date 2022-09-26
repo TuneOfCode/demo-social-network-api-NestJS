@@ -29,7 +29,7 @@ export class TransformInterceptor<T>
         statusCodeMessage: HttpStatus[HttpStatus.OK],
         data: data,
         path: request.url,
-        time: new Date().toLocaleDateString('es-US'),
+        time: new Date().toLocaleString('es-Us'),
       })),
     );
   }
