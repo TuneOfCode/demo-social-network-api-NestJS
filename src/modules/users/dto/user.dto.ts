@@ -1,6 +1,10 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+<<<<<<< HEAD
 import { IUser } from '../interface/user.interface';
+=======
+import { IUser } from '../interfaces/user.interface';
+>>>>>>> 6c78765 ([FIX | ADD] Fix config & Add - Setup users - auth)
 
 export class CreateUserDto implements IUser {
   @IsString()

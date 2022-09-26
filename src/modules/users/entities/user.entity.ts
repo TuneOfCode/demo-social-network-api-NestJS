@@ -5,7 +5,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+<<<<<<< HEAD
 import { IUser } from '../interface/user.interface';
+=======
+import { IUser } from '../interfaces/user.interface';
+>>>>>>> 6c78765 ([FIX | ADD] Fix config & Add - Setup users - auth)
 
 @Entity({ name: 'users' })
 export class UserEntity implements IUser {
