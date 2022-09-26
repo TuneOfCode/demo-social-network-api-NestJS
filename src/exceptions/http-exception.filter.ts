@@ -25,9 +25,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
       isSucess: false,
       statusCode: statusCode,
       statusCodeMessage: formatString(HttpStatus[statusCode]),
-      message: exception.message || message,
+      errorMessage: message,
       path: request.url,
-      time: new Date().toLocaleDateString('es-US'),
+      time: new Date().toLocaleString('es-Us'),
     });
   }
 }
