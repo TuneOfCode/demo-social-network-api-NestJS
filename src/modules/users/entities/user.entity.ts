@@ -6,10 +6,14 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { IUser } from '../interface/user.interface';
 =======
 import { IUser } from '../interfaces/user.interface';
 >>>>>>> 6c78765 ([FIX | ADD] Fix config & Add - Setup users - auth)
+=======
+import { IUser } from '../interfaces/user.interface';
+>>>>>>> hotfix/auth
 
 @Entity({ name: 'users' })
 export class UserEntity implements IUser {

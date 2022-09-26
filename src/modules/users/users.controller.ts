@@ -10,10 +10,14 @@ import {
 import { UseGuards } from '@nestjs/common/decorators';
 import { ParseUUIDPipe } from '@nestjs/common/pipes';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { JwtAuthGuard } from '../auth/guard/jwt.guard';
 =======
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 >>>>>>> 6c78765 ([FIX | ADD] Fix config & Add - Setup users - auth)
+=======
+import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+>>>>>>> hotfix/auth
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { UsersService } from './users.service';
 

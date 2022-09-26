@@ -3,10 +3,14 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { env } from 'src/configs/common.config';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { IUser } from '../users/interface/user.interface';
 =======
 import { IUser } from '../users/interfaces/user.interface';
 >>>>>>> 6c78765 ([FIX | ADD] Fix config & Add - Setup users - auth)
+=======
+import { IUser } from '../users/interfaces/user.interface';
+>>>>>>> hotfix/auth
 import { UsersService } from '../users/users.service';
 import { LoginUserDto } from './dto/auth.dto';
 @Injectable()
