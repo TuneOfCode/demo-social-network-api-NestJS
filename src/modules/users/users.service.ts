@@ -43,8 +43,6 @@ export class UsersService {
     const checkUserWithEmail = await this.userRepository.findOne({
       where: { email },
     });
-    if (!checkUserWithEmail)
-      throw new HttpException('Email does not exist', HttpStatus.BAD_REQUEST);
     return checkUserWithEmail;
   }
 

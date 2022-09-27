@@ -1,30 +1,14 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import {} from '@nestjs/config';
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { IUser } from '../users/interface/user.interface';
-=======
+import { CreateUserDto } from '../users/dto/user.dto';
 import { IUser } from '../users/interfaces/user.interface';
->>>>>>> 6c78765 ([FIX | ADD] Fix config & Add - Setup users - auth)
-=======
-import { IUser } from '../users/interfaces/user.interface';
->>>>>>> hotfix/auth
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorator/user.decorator';
 import { LoginUserDto } from './dto/auth.dto';
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { JwtAuthGuard } from './guard/jwt.guard';
-import { LocalAuthGuard } from './guard/local.guard';
-=======
+
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { LocalAuthGuard } from './guards/local.guard';
->>>>>>> 6c78765 ([FIX | ADD] Fix config & Add - Setup users - auth)
-=======
-import { JwtAuthGuard } from './guards/jwt.guard';
-import { LocalAuthGuard } from './guards/local.guard';
->>>>>>> hotfix/auth
 
 @Controller('auth')
 export class AuthController {
@@ -33,10 +17,15 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
+  @Post('register')
+  async register(@Body() createUserDto: CreateUserDto) {
+    return await this.authService.register(createUserDto);
+  }
+
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@Body() loginUserDto: LoginUserDto) {
-    return this.authService.generateToken(loginUserDto);
+  async login(@Body() loginUserDto: LoginUserDto) {
+    return await this.authService.login(loginUserDto);
   }
 
   @UseGuards(JwtAuthGuard)
