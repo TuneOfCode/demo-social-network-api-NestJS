@@ -1,6 +1,7 @@
 declare namespace NodeJS {
   export interface ProcessEnv {
     APP_PORT?: string;
+    APP_ORIGIN_IN_CORS?: string;
     DB_TYPE?: string;
     DB_HOST?: string;
     DB_PORT?: string;
@@ -10,5 +11,6 @@ declare namespace NodeJS {
     JWT_SIGNATURE?: string;
     JWT_ACCESS_TOKEN_EXPIES_IN?: string;
     JWT_REFRESH_TOKEN_EXPIES_IN?: string;
+    JWT_COOKIE?: string;
   }
 }

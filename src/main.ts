@@ -3,12 +3,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './exceptions/http-exception.filter';
 import { TransformInterceptor } from './interceptors/transform.interceptor';
+import * as cookieParse from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
+  app.use(cookieParse());
   app.enableCors({
-    origin: '*',
+    origin: process.env.APP_ORIGIN_IN_CORS.trim().split(' ') || ['*'],
     credentials: true,
   });
   app.useGlobalPipes(

@@ -3,6 +3,8 @@ export interface IUser {
   fullname: string;
   email: string;
   password: string;
+  avatarUrl?: string;
+  isDisabled?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }

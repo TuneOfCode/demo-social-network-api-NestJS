@@ -1,4 +1,9 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { env } from 'src/configs/common.config';
@@ -19,7 +24,7 @@ export class AuthService {
     delete user.password;
     return {
       ...user,
-      tokens: tokens,
+      ...tokens,
     };
   }
 
@@ -28,7 +33,12 @@ export class AuthService {
       loginUserDto.email,
       loginUserDto.password,
     );
-    return await this.generateToken(user);
+    const tokens = await this.generateToken(user);
+    await this.usersService.restore(user.id);
+    return {
+      id: user.id,
+      ...tokens,
+    };
   }
 
   async validateUser(email: string, password: string) {
@@ -66,5 +76,12 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async getMe(user: IUser) {
+    const checkUserWithEmail = await this.usersService.findByEmail(user.email);
+    if (!checkUserWithEmail || checkUserWithEmail.isDisabled)
+      throw new UnauthorizedException();
+    return checkUserWithEmail;
   }
 }

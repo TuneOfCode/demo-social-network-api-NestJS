@@ -21,5 +21,6 @@ export const env = {
   JWT_SIGNATURE: process.env.JWT_SIGNATURE,
   JWT_ACCESS_TOKEN_EXPIES_IN: process.env.JWT_ACCESS_TOKEN_EXPIES_IN,
   JWT_REFRESH_TOKEN_EXPIES_IN: process.env.JWT_REFRESH_TOKEN_EXPIES_IN,
+  JWT_COOKIE: process.env.JWT_COOKIE,
 };
 export default configuration;

@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, Repository, UpdateResult } from 'typeorm';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { UserEntity } from './entities/user.entity';
 
@@ -24,17 +24,19 @@ export class UsersService {
   }
 
   async findAll(): Promise<UserEntity[]> {
-    const users = await this.userRepository.find();
+    const users = await this.userRepository.find({
+      where: { isDisabled: false },
+    });
     users.map((user) => delete user.password);
     return users;
   }
 
   async findById(id: string): Promise<UserEntity> {
     const checkUserWithId = await this.userRepository.findOne({
-      where: { id },
+      where: { id, isDisabled: false },
     });
     if (!checkUserWithId)
-      throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
+      throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
     delete checkUserWithId.password;
     return checkUserWithId;
   }
@@ -69,7 +71,25 @@ export class UsersService {
     return await this.userRepository.update(id, updateUserDto);
   }
 
-  async destroy(id: string) {
+  async disable(id: string): Promise<UpdateResult> {
+    const checkUserWithId = await this.userRepository.findOne({
+      where: { id },
+    });
+    if (!checkUserWithId)
+      throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
+    return await this.userRepository.update(id, { isDisabled: true });
+  }
+
+  async restore(id: string): Promise<UpdateResult> {
+    const checkUser = await this.userRepository.findOne({
+      where: { id },
+    });
+    if (!checkUser)
+      throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
+    return await this.userRepository.update(id, { isDisabled: false });
+  }
+
+  async destroy(id: string): Promise<DeleteResult> {
     const checkUserWithId = await this.findById(id);
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);

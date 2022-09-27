@@ -29,6 +29,9 @@ export class UserEntity implements IUser {
   })
   avatarUrl: string;
 
+  @Column({ default: false })
+  isDisabled: boolean;
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
