@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { FilesService } from '../files/files.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { UserEntity } from './entities/user.entity';
 
@@ -10,6 +11,7 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly filesService: FilesService,
   ) {}
   async create(createUserDto: CreateUserDto): Promise<UserEntity> {
     const checkUserWithEmail = await this.findByEmail(createUserDto.email);
@@ -26,6 +28,10 @@ export class UsersService {
   async findAll(): Promise<UserEntity[]> {
     const users = await this.userRepository.find({
       where: { isDisabled: false },
+      relations: ['avatar'],
+      order: {
+        fullname: 'ASC',
+      },
     });
     users.map((user) => delete user.password);
     return users;
@@ -34,6 +40,7 @@ export class UsersService {
   async findById(id: string): Promise<UserEntity> {
     const checkUserWithId = await this.userRepository.findOne({
       where: { id, isDisabled: false },
+      relations: ['avatar'],
     });
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
@@ -44,6 +51,7 @@ export class UsersService {
   async findByEmail(email: string): Promise<UserEntity> {
     const checkUserWithEmail = await this.userRepository.findOne({
       where: { email },
+      relations: ['avatar'],
     });
     return checkUserWithEmail;
   }
@@ -89,10 +97,16 @@ export class UsersService {
     return await this.userRepository.update(id, { isDisabled: false });
   }
 
+  async destroyRelationWithFile(fileName: string): Promise<DeleteResult> {
+    return await this.filesService.destroy(fileName);
+  }
+
   async destroy(id: string): Promise<DeleteResult> {
     const checkUserWithId = await this.findById(id);
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
-    return await this.userRepository.delete(id);
+    const fileName = checkUserWithId.avatar.fileName;
+    await this.userRepository.delete(id);
+    return await this.destroyRelationWithFile(fileName);
   }
 }

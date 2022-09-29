@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt/dist';
 import { PassportModule } from '@nestjs/passport/dist';
 import { env } from 'src/configs/common.config';
+import { FilesModule } from '../files/files.module';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -11,9 +12,10 @@ import { LocalStrategy } from './strategies/local.strategy';
 @Module({
   imports: [
     UsersModule,
+    FilesModule,
     PassportModule,
     JwtModule.register({
-      secret: env.JWT_SIGNATURE,
+      secret: env.JWT_ACCESS_TOKEN_SECRET,
       signOptions: { expiresIn: env.JWT_ACCESS_TOKEN_EXPIES_IN },
     }),
   ],

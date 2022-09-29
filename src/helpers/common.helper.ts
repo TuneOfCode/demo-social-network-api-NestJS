@@ -1,8 +1,10 @@
+import { UnauthorizedException } from '@nestjs/common';
+
 const linkPreviewGenerator = require('link-preview-generator'); // import linkPreviewGenerator from "link-preview-generator";
 export const formatString = (str: String): String => {
   return str
     .toLowerCase()
-    .replace('_', ' ')
+    .replace(/_/g, ' ')
     .replace(/^\w/, (c) => c.toUpperCase())
     .trim();
 };
@@ -13,6 +15,23 @@ export const isString = (value: any) => {
 
 export const isEmptyInObject = (value: any) => {
   return Object.keys(value).length > 0;
+};
+
+export const encoded = (value: any) => {
+  return Buffer.from(JSON.stringify(value), 'ascii').toString('base64');
+};
+export const decoded = (valueEncoded: any) => {
+  try {
+    const dataString = Buffer.from(valueEncoded, 'base64').toString('utf-8');
+    const dataObject = JSON.parse(dataString.toString());
+    return dataObject;
+  } catch (error) {
+    throw new UnauthorizedException();
+  }
+};
+
+export const decodedString = (valueEncoded: any) => {
+  return Buffer.from(valueEncoded, 'base64').toString('utf-8');
 };
 
 export const getURLInText = (text: string) => {

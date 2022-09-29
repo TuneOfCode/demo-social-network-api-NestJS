@@ -23,7 +23,8 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   try {
     await app.listen(process.env.APP_PORT || 3000);
-    console.log('Server is running ', await app.getUrl());
+    const appURL = await app.getUrl();
+    console.log('Server is running ', appURL);
   } catch (error) {
     console.log('Server is ' + error);
   }

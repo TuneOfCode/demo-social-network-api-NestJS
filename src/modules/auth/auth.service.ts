@@ -7,10 +7,12 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { env } from 'src/configs/common.config';
+import { decoded, encoded } from 'src/helpers/common.helper';
 import { CreateUserDto } from '../users/dto/user.dto';
 import { IUser } from '../users/interfaces/user.interface';
 import { UsersService } from '../users/users.service';
 import { LoginUserDto } from './dto/auth.dto';
+import { IAuthCookie } from './interfaces/auth.interface';
 @Injectable()
 export class AuthService {
   constructor(
@@ -65,11 +67,11 @@ export class AuthService {
   async generateToken(user: IUser) {
     const payload = { email: user.email };
     const accessToken = this.jwtService.sign(payload, {
-      secret: env.JWT_SIGNATURE,
+      secret: env.JWT_ACCESS_TOKEN_SECRET,
       expiresIn: env.JWT_ACCESS_TOKEN_EXPIES_IN,
     });
     const refreshToken = this.jwtService.sign(payload, {
-      secret: env.JWT_SIGNATURE,
+      secret: env.JWT_REFRESH_TOKEN_SECRET,
       expiresIn: env.JWT_REFRESH_TOKEN_EXPIES_IN,
     });
     return {
@@ -78,10 +80,25 @@ export class AuthService {
     };
   }
 
+  async updateAccessToken(refreshTokenInCookie: string) {
+    try {
+      const decode = this.jwtService.verify(refreshTokenInCookie, {
+        secret: env.JWT_REFRESH_TOKEN_SECRET,
+      });
+      const newAccessToken = (await this.generateToken(decode)).accessToken;
+      return {
+        accessToken: newAccessToken,
+      };
+    } catch (error) {
+      console.log(error);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
   async getMe(user: IUser) {
     const checkUserWithEmail = await this.usersService.findByEmail(user.email);
-    if (!checkUserWithEmail || checkUserWithEmail.isDisabled)
-      throw new UnauthorizedException();
+    if (!checkUserWithEmail) throw new UnauthorizedException();
+    delete checkUserWithEmail.password;
     return checkUserWithEmail;
   }
 }

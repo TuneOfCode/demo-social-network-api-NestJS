@@ -7,7 +7,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { IsNull } from 'typeorm';
+import { IFile } from 'src/modules/files/interfaces/file.interface';
 import { IUser } from '../interfaces/user.interface';
 
 export class CreateUserDto implements IUser {
@@ -23,13 +23,7 @@ export class CreateUserDto implements IUser {
   @MinLength(5)
   password: string;
 
-  @IsString()
-  @IsEmpty()
-  avatarUrl?: string;
-
-  @IsBoolean()
-  @IsEmpty()
-  isDisabled?: boolean;
+  avatar?: IFile;
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) implements IUser {

@@ -1,25 +1,41 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
   Param,
   Patch,
+  Req,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { Req } from '@nestjs/common/decorators';
 import { ParseUUIDPipe } from '@nestjs/common/pipes';
-import { Request } from 'express';
-import { env } from 'src/configs/common.config';
+import { Request, Response } from 'express';
+import * as fs from 'fs';
+import { join } from 'path';
+import { of } from 'rxjs';
+import { env, storageOfUploadFile } from 'src/configs/common.config';
+import { decoded } from 'src/helpers/common.helper';
+import { CustomFileInterceptor } from 'src/interceptors/uploadFile.interceptor';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
+import { IAuthCookie } from '../auth/interfaces/auth.interface';
+import { UpdateFileDto } from '../files/dto/file.dto';
+import { FilesService } from '../files/files.service';
 import { UpdateUserDto } from './dto/user.dto';
-import { IUser } from './interfaces/user.interface';
 import { UsersService } from './users.service';
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-@Controller('users')
 @UseGuards(JwtAuthGuard)
+@Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly filesService: FilesService,
+  ) {}
 
   @Get()
   findAll() {
@@ -32,10 +48,48 @@ export class UsersController {
   }
 
   @Patch('edit/:uuid')
-  update(
+  @UseInterceptors(
+    CustomFileInterceptor({
+      typeUpload: 'single',
+      fieldName: 'avatar',
+      maxCount: null,
+      selectExt: 'image',
+      localStoragePath: storageOfUploadFile.avatar,
+    }),
+  )
+  async update(
     @Param('uuid', new ParseUUIDPipe()) uuid: string,
     @Body() updateUserDto: UpdateUserDto,
+    @Req() request: Request,
+    @UploadedFile() file: Express.Multer.File,
   ) {
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
+    if (currentUser.id !== uuid)
+      throw new HttpException(
+        'Do not have permission to access this resource',
+        HttpStatus.FORBIDDEN,
+      );
+    if (file) {
+      const editFile: UpdateFileDto = {
+        fileName: file.filename,
+        fileUrl: `${env.APP_DOMAIN}/users/avatars/${file.filename}`,
+        size: file.size,
+        type: file.mimetype,
+      };
+      updateUserDto.avatar = editFile;
+      console.log('Edit File Upload: ', editFile);
+      const checkUserWithId = await this.usersService.findById(uuid);
+      // delete old avatar (when deploy will keep)
+      if (checkUserWithId.avatar && checkUserWithId.avatar?.fileName) {
+        const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
+          storageOfUploadFile.avatar
+        }/${checkUserWithId.avatar.fileName}`;
+        fs.unlink(avatarPath, (error) => {
+          return error;
+        });
+      }
+      await this.filesService.create(editFile);
+    }
     return this.usersService.update(uuid, updateUserDto);
   }
 
@@ -43,13 +97,15 @@ export class UsersController {
   disable(
     @Param('uuid', new ParseUUIDPipe()) uuid: string,
     @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    const currentUser: Partial<IUser> = request.cookies[env.JWT_COOKIE];
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     if (currentUser.id !== uuid)
       throw new HttpException(
         'Do not have permission to access this resource',
         HttpStatus.FORBIDDEN,
       );
+    response.clearCookie(env.JWT_COOKIE);
     return this.usersService.disable(uuid);
   }
 
@@ -58,7 +114,7 @@ export class UsersController {
     @Param('uuid', new ParseUUIDPipe()) uuid: string,
     @Req() request: Request,
   ) {
-    const currentUser: Partial<IUser> = request.cookies[env.JWT_COOKIE];
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     if (currentUser.id !== uuid)
       throw new HttpException(
         'Do not have permission to access this resource',
@@ -68,7 +124,32 @@ export class UsersController {
   }
 
   @Delete('destroy/:uuid')
-  remove(@Param('uuid', new ParseUUIDPipe()) uuid: string) {
-    return this.usersService.destroy(uuid);
+  async remove(@Param('uuid', new ParseUUIDPipe()) uuid: string) {
+    const checkUserWithId = await this.usersService.findById(uuid);
+    const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
+      storageOfUploadFile.avatar
+    }/${checkUserWithId.avatar.fileName}`;
+    fs.unlink(avatarPath, (error) => {
+      return error;
+    });
+    return await this.usersService.destroy(uuid);
+  }
+
+  @Get('avatar/:fileName')
+  async GetAvatar(@Param('fileName') fileName: string, @Res() response) {
+    try {
+      const avatarUrl = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
+        storageOfUploadFile.avatar
+      }/${fileName}`;
+      const checkFileWithFileName = await this.filesService.findByFileName(
+        fileName,
+      );
+      if (!checkFileWithFileName) {
+        throw new NotFoundException('Avatar does not found');
+      }
+      return of(response.sendFile(avatarUrl));
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
   }
 }
