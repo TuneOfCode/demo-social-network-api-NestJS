@@ -28,7 +28,8 @@ export const env = {
 };
 
 export const storageOfUploadFile = {
-  avatar: 'avatars',
+  user: 'avatars',
+  post: 'posts',
 };
 
 export default configuration;

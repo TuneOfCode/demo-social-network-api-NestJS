@@ -54,7 +54,7 @@ export class UsersController {
       fieldName: 'avatar',
       maxCount: null,
       selectExt: 'image',
-      localStoragePath: storageOfUploadFile.avatar,
+      localStoragePath: storageOfUploadFile.user,
     }),
   )
   async update(
@@ -69,28 +69,31 @@ export class UsersController {
         'Do not have permission to access this resource',
         HttpStatus.FORBIDDEN,
       );
+    const checkUserWithId = await this.usersService.findById(uuid);
     if (file) {
       const editFile: UpdateFileDto = {
         fileName: file.filename,
-        fileUrl: `${env.APP_DOMAIN}/users/avatars/${file.filename}`,
+        fileUrl: `${env.APP_DOMAIN}/users/avatar/${file.filename}`,
         size: file.size,
         type: file.mimetype,
       };
       updateUserDto.avatar = editFile;
       console.log('Edit File Upload: ', editFile);
-      const checkUserWithId = await this.usersService.findById(uuid);
       // delete old avatar (when deploy will keep)
+      console.log(
+        'checkUserWithId.avatar?.fileName: ',
+        checkUserWithId.avatar.fileName,
+      );
       if (checkUserWithId.avatar && checkUserWithId.avatar?.fileName) {
         const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
-          storageOfUploadFile.avatar
+          storageOfUploadFile.user
         }/${checkUserWithId.avatar.fileName}`;
         fs.unlink(avatarPath, (error) => {
           return error;
         });
       }
-      await this.filesService.create(editFile);
     }
-    return this.usersService.update(uuid, updateUserDto);
+    return await this.usersService.update(uuid, updateUserDto);
   }
 
   @Patch('disable/:uuid')
@@ -127,7 +130,7 @@ export class UsersController {
   async remove(@Param('uuid', new ParseUUIDPipe()) uuid: string) {
     const checkUserWithId = await this.usersService.findById(uuid);
     const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
-      storageOfUploadFile.avatar
+      storageOfUploadFile.user
     }/${checkUserWithId.avatar.fileName}`;
     fs.unlink(avatarPath, (error) => {
       return error;
@@ -136,10 +139,10 @@ export class UsersController {
   }
 
   @Get('avatar/:fileName')
-  async GetAvatar(@Param('fileName') fileName: string, @Res() response) {
+  async getAvatar(@Param('fileName') fileName: string, @Res() response) {
     try {
       const avatarUrl = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
-        storageOfUploadFile.avatar
+        storageOfUploadFile.user
       }/${fileName}`;
       const checkFileWithFileName = await this.filesService.findByFileName(
         fileName,

@@ -33,7 +33,7 @@ export class FilesService {
       relations: ['userRef'],
     });
     if (!checkFileWithFileName)
-      throw new HttpException('File does not exist', HttpStatus.NOT_FOUND);
+      throw new HttpException('File does not found', HttpStatus.NOT_FOUND);
     return checkFileWithFileName;
   }
 

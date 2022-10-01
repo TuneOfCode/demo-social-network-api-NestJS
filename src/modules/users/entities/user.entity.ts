@@ -1,9 +1,11 @@
 import { FileEntity } from 'src/modules/files/entities/file.entity';
+import { PostEntity } from 'src/modules/posts/entities/post.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -28,8 +30,11 @@ export class UserEntity implements IUser {
     cascade: true,
     // eager: true,
   })
-  @JoinColumn()
+  @JoinColumn({ name: 'avatar' })
   avatar: FileEntity;
+
+  @OneToMany(() => PostEntity, (posts) => posts.author)
+  posts: PostEntity[];
 
   @Column({ default: false })
   isDisabled: boolean;

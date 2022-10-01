@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -7,12 +8,10 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { env } from 'src/configs/common.config';
-import { decoded, encoded } from 'src/helpers/common.helper';
 import { CreateUserDto } from '../users/dto/user.dto';
 import { IUser } from '../users/interfaces/user.interface';
 import { UsersService } from '../users/users.service';
 import { LoginUserDto } from './dto/auth.dto';
-import { IAuthCookie } from './interfaces/auth.interface';
 @Injectable()
 export class AuthService {
   constructor(
@@ -85,13 +84,14 @@ export class AuthService {
       const decode = this.jwtService.verify(refreshTokenInCookie, {
         secret: env.JWT_REFRESH_TOKEN_SECRET,
       });
+      if (!decode) throw new BadRequestException('Refresh token has expired');
       const newAccessToken = (await this.generateToken(decode)).accessToken;
       return {
         accessToken: newAccessToken,
       };
     } catch (error) {
       console.log(error);
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new BadRequestException('Invalid refresh token');
     }
   }
 

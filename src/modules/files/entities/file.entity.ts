@@ -1,8 +1,11 @@
+import { PostEntity } from 'src/modules/posts/entities/post.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToOne,
   PrimaryColumn,
   UpdateDateColumn,
@@ -25,6 +28,10 @@ export class FileEntity implements IFile {
 
   @OneToOne(() => UserEntity, (user) => user.avatar)
   userRef: UserEntity;
+
+  @ManyToOne(() => PostEntity, (posts) => posts.mediaFiles)
+  @JoinColumn()
+  posts: PostEntity[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

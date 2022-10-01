@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
 import { IsEmailAlreadyExistContraint } from './validations/checkEmail.validation';
 import { FilesModule } from '../files/files.module';
+import { PostsModule } from '../posts/posts.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([UserEntity]), FilesModule],

@@ -40,7 +40,7 @@ export class UsersService {
   async findById(id: string): Promise<UserEntity> {
     const checkUserWithId = await this.userRepository.findOne({
       where: { id, isDisabled: false },
-      relations: ['avatar'],
+      relations: ['avatar', 'posts'],
     });
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
@@ -76,7 +76,14 @@ export class UsersService {
       const hashedPassword = await bcrypt.hash(updateUserDto.password, 10);
       updateUserDto.password = hashedPassword;
     }
-    return await this.userRepository.update(id, updateUserDto);
+
+    if (updateUserDto.avatar) {
+      await this.filesService.create(updateUserDto.avatar);
+    }
+    await this.userRepository.update(id, updateUserDto);
+    if (updateUserDto.avatar)
+      await this.destroyRelationWithFile(checkUserWithId.avatar.fileName);
+    return;
   }
 
   async disable(id: string): Promise<UpdateResult> {
@@ -85,7 +92,8 @@ export class UsersService {
     });
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
-    return await this.userRepository.update(id, { isDisabled: true });
+    await this.userRepository.update(id, { isDisabled: true });
+    return;
   }
 
   async restore(id: string): Promise<UpdateResult> {
@@ -94,11 +102,13 @@ export class UsersService {
     });
     if (!checkUser)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
-    return await this.userRepository.update(id, { isDisabled: false });
+    await this.userRepository.update(id, { isDisabled: false });
+    return;
   }
 
   async destroyRelationWithFile(fileName: string): Promise<DeleteResult> {
-    return await this.filesService.destroy(fileName);
+    await this.filesService.destroy(fileName);
+    return;
   }
 
   async destroy(id: string): Promise<DeleteResult> {
@@ -107,6 +117,7 @@ export class UsersService {
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
     const fileName = checkUserWithId.avatar.fileName;
     await this.userRepository.delete(id);
-    return await this.destroyRelationWithFile(fileName);
+    await this.destroyRelationWithFile(fileName);
+    return;
   }
 }

@@ -2,7 +2,6 @@ import { BadRequestException } from '@nestjs/common';
 import { diskStorage } from 'multer';
 import {
   allowedFileExtensions,
-  allowedFileSize,
   extImages,
   extOthers,
   extVideos,

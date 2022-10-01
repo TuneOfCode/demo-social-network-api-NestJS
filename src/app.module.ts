@@ -6,6 +6,8 @@ import { typeOrmConfig } from './configs/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { FilesModule } from './modules/files/files.module';
+import { PostsModule } from './modules/posts/posts.module';
+import { LinksPreviewModule } from './modules/links-preview/links-preview.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -16,6 +18,8 @@ import { FilesModule } from './modules/files/files.module';
     UsersModule,
     AuthModule,
     FilesModule,
+    PostsModule,
+    LinksPreviewModule,
   ],
   controllers: [],
   providers: [],

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -14,7 +15,6 @@ import { env, storageOfUploadFile } from 'src/configs/common.config';
 import { decoded, encoded } from 'src/helpers/common.helper';
 import { CustomFileInterceptor } from 'src/interceptors/uploadFile.interceptor';
 import { CreateFileDto } from '../files/dto/file.dto';
-import { FilesService } from '../files/files.service';
 import { CreateUserDto } from '../users/dto/user.dto';
 import { IUser } from '../users/interfaces/user.interface';
 import { AuthService } from './auth.service';
@@ -26,10 +26,7 @@ import { IAuthCookie } from './interfaces/auth.interface';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly filesService: FilesService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   @UseInterceptors(
@@ -38,7 +35,7 @@ export class AuthController {
       fieldName: 'avatar',
       maxCount: null,
       selectExt: 'image',
-      localStoragePath: storageOfUploadFile.avatar,
+      localStoragePath: storageOfUploadFile.user,
     }),
   )
   async register(
@@ -55,7 +52,6 @@ export class AuthController {
       };
       createUserDto.avatar = newFile;
       console.log('New File Upload: ', newFile);
-      await this.filesService.create(newFile);
     }
     const userCreated = await this.authService.register(createUserDto);
     const user: IAuthCookie = {
@@ -85,10 +81,18 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('refreshToken')
-  async getRefreshToken(@Req() request: Request) {
+  @Post('refreshToken')
+  async getNewAccessToken(@Body() body: any, @Req() request: Request) {
     const authCookie: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
-    return await this.authService.updateAccessToken(authCookie.refreshToken);
+    if (
+      body.refreshTokenInLogin &&
+      body.refreshTokenInLogin !== authCookie.refreshToken
+    ) {
+      console.log('refreshTokenInLogin: ', body.refreshTokenInLogin);
+      console.log('refreshTokenInCookie: ', authCookie.refreshToken);
+      throw new BadRequestException('Incorrect refresh token');
+    }
+    return await this.authService.updateAccessToken(body.refreshTokenInLogin);
   }
 
   @UseGuards(JwtAuthGuard)
