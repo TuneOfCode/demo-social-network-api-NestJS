@@ -60,7 +60,7 @@ export class AuthController {
       refreshToken: userCreated.refreshToken,
     };
     response.cookie(env.JWT_COOKIE, encoded(user), { httpOnly: true });
-    return userCreated;
+    return user;
   }
 
   @UseGuards(LocalAuthGuard)
@@ -81,7 +81,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('refreshToken')
+  @Post('refresh-token')
   async getNewAccessToken(@Body() body: any, @Req() request: Request) {
     const authCookie: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     if (

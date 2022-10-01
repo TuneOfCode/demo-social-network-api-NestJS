@@ -80,17 +80,19 @@ export class UsersController {
       updateUserDto.avatar = editFile;
       console.log('Edit File Upload: ', editFile);
       // delete old avatar (when deploy will keep)
-      console.log(
-        'checkUserWithId.avatar?.fileName: ',
-        checkUserWithId.avatar.fileName,
-      );
-      if (checkUserWithId.avatar && checkUserWithId.avatar?.fileName) {
-        const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
-          storageOfUploadFile.user
-        }/${checkUserWithId.avatar.fileName}`;
-        fs.unlink(avatarPath, (error) => {
-          return error;
-        });
+      if (checkUserWithId.avatar) {
+        console.log(
+          'checkUserWithId.avatar?.fileName: ',
+          checkUserWithId.avatar.fileName,
+        );
+        if (checkUserWithId.avatar && checkUserWithId.avatar?.fileName) {
+          const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
+            storageOfUploadFile.user
+          }/${checkUserWithId.avatar.fileName}`;
+          fs.unlink(avatarPath, (error) => {
+            return error;
+          });
+        }
       }
     }
     return await this.usersService.update(uuid, updateUserDto);
@@ -127,15 +129,23 @@ export class UsersController {
   }
 
   @Delete('destroy/:uuid')
-  async remove(@Param('uuid', new ParseUUIDPipe()) uuid: string) {
+  async remove(
+    @Param('uuid', new ParseUUIDPipe()) uuid: string,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     const checkUserWithId = await this.usersService.findById(uuid);
-    const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
-      storageOfUploadFile.user
-    }/${checkUserWithId.avatar.fileName}`;
-    fs.unlink(avatarPath, (error) => {
-      return error;
-    });
-    return await this.usersService.destroy(uuid);
+    if (checkUserWithId.avatar) {
+      const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
+        storageOfUploadFile.user
+      }/${checkUserWithId.avatar.fileName}`;
+      fs.unlink(avatarPath, (error) => {
+        return error;
+      });
+    }
+    response.clearCookie(env.JWT_COOKIE, { httpOnly: true });
+    return await this.usersService.destroy(uuid, currentUser);
   }
 
   @Get('avatar/:fileName')

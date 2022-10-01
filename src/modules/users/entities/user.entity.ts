@@ -8,6 +8,7 @@ import {
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
+  RelationId,
   UpdateDateColumn,
 } from 'typeorm';
 import { IUser } from '../interfaces/user.interface';
@@ -28,13 +29,20 @@ export class UserEntity implements IUser {
 
   @OneToOne(() => FileEntity, (file) => file.userRef, {
     cascade: true,
-    // eager: true,
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'avatar' })
+  @JoinColumn()
   avatar: FileEntity;
+
+  @RelationId((user: UserEntity) => user.avatar)
+  avatarImg: string;
 
   @OneToMany(() => PostEntity, (posts) => posts.author)
   posts: PostEntity[];
+
+  @RelationId((user: UserEntity) => user.posts)
+  postId: string[];
 
   @Column({ default: false })
   isDisabled: boolean;

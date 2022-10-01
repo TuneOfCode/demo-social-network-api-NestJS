@@ -2,7 +2,9 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { IAuthCookie } from '../auth/interfaces/auth.interface';
 import { FilesService } from '../files/files.service';
+import { EMode } from '../posts/interfaces/post.interface';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { UserEntity } from './entities/user.entity';
 
@@ -21,6 +23,9 @@ export class UsersService {
         HttpStatus.CONFLICT,
       );
     createUserDto.password = await bcrypt.hash(createUserDto.password, 10);
+    if (createUserDto.avatar) {
+      await this.filesService.create(createUserDto.avatar);
+    }
     const newUser = await this.userRepository.create(createUserDto);
     return await this.userRepository.save(newUser);
   }
@@ -28,7 +33,6 @@ export class UsersService {
   async findAll(): Promise<UserEntity[]> {
     const users = await this.userRepository.find({
       where: { isDisabled: false },
-      relations: ['avatar'],
       order: {
         fullname: 'ASC',
       },
@@ -44,15 +48,26 @@ export class UsersService {
     });
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
+    checkUserWithId.posts = checkUserWithId.posts.filter(
+      (item) => item.mode !== EMode.PRIVATE,
+    );
     delete checkUserWithId.password;
+    delete checkUserWithId.postId;
+    delete checkUserWithId.avatarImg;
     return checkUserWithId;
   }
 
   async findByEmail(email: string): Promise<UserEntity> {
     const checkUserWithEmail = await this.userRepository.findOne({
       where: { email },
-      relations: ['avatar'],
+      relations: ['avatar', 'posts'],
     });
+    // if (!checkUserWithEmail)
+    //   throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
+    if (checkUserWithEmail) {
+      delete checkUserWithEmail.postId;
+      delete checkUserWithEmail.avatarImg;
+    }
     return checkUserWithEmail;
   }
 
@@ -82,7 +97,9 @@ export class UsersService {
     }
     await this.userRepository.update(id, updateUserDto);
     if (updateUserDto.avatar)
-      await this.destroyRelationWithFile(checkUserWithId.avatar.fileName);
+      if (checkUserWithId.avatar) {
+        await this.destroyRelationWithFile(checkUserWithId.avatar.fileName);
+      }
     return;
   }
 
@@ -111,13 +128,20 @@ export class UsersService {
     return;
   }
 
-  async destroy(id: string): Promise<DeleteResult> {
+  async destroy(id: string, currentUser: IAuthCookie): Promise<DeleteResult> {
     const checkUserWithId = await this.findById(id);
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
-    const fileName = checkUserWithId.avatar.fileName;
+    if (currentUser.id !== id)
+      throw new HttpException(
+        'Do not have permission to access this resource',
+        HttpStatus.FORBIDDEN,
+      );
     await this.userRepository.delete(id);
-    await this.destroyRelationWithFile(fileName);
+    if (checkUserWithId.avatar) {
+      const fileName = checkUserWithId.avatar.fileName;
+      await this.filesService.destroy(fileName);
+    }
     return;
   }
 }

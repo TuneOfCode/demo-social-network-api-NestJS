@@ -26,10 +26,16 @@ export class FileEntity implements IFile {
   @Column({ nullable: true })
   type?: string;
 
-  @OneToOne(() => UserEntity, (user) => user.avatar)
+  @OneToOne(() => UserEntity, (user) => user.avatar, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
   userRef: UserEntity;
 
-  @ManyToOne(() => PostEntity, (posts) => posts.mediaFiles)
+  @ManyToOne(() => PostEntity, (posts) => posts.mediaFiles, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   posts: PostEntity[];
 
