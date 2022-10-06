@@ -4,10 +4,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { file } from './configs/common.config';
 import { typeOrmConfig } from './configs/typeorm.config';
 import { AuthModule } from './modules/auth/auth.module';
-import { UsersModule } from './modules/users/users.module';
+import { CommentsModule } from './modules/comments/comments.module';
 import { FilesModule } from './modules/files/files.module';
-import { PostsModule } from './modules/posts/posts.module';
 import { LinksPreviewModule } from './modules/links-preview/links-preview.module';
+import { PostsModule } from './modules/posts/posts.module';
+import { UsersModule } from './modules/users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -20,6 +21,7 @@ import { LinksPreviewModule } from './modules/links-preview/links-preview.module
     FilesModule,
     PostsModule,
     LinksPreviewModule,
+    CommentsModule,
   ],
   controllers: [],
   providers: [],

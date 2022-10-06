@@ -1,12 +1,12 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { IAuthCookie } from 'src/modules/auth/interfaces/auth.interface';
+import { FilesService } from 'src/modules/files/services/files.service';
+import { EMode } from 'src/modules/posts/interfaces/post.interface';
 import { DeleteResult, Repository, UpdateResult } from 'typeorm';
-import { IAuthCookie } from '../auth/interfaces/auth.interface';
-import { FilesService } from '../files/files.service';
-import { EMode } from '../posts/interfaces/post.interface';
-import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
-import { UserEntity } from './entities/user.entity';
+import { CreateUserDto, UpdateUserDto } from '../dto/user.dto';
+import { UserEntity } from '../entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -15,6 +15,7 @@ export class UsersService {
     private readonly userRepository: Repository<UserEntity>,
     private readonly filesService: FilesService,
   ) {}
+
   async create(createUserDto: CreateUserDto): Promise<UserEntity> {
     const checkUserWithEmail = await this.findByEmail(createUserDto.email);
     if (checkUserWithEmail)
@@ -23,9 +24,6 @@ export class UsersService {
         HttpStatus.CONFLICT,
       );
     createUserDto.password = await bcrypt.hash(createUserDto.password, 10);
-    if (createUserDto.avatar) {
-      await this.filesService.create(createUserDto.avatar);
-    }
     const newUser = await this.userRepository.create(createUserDto);
     return await this.userRepository.save(newUser);
   }
@@ -44,16 +42,19 @@ export class UsersService {
   async findById(id: string): Promise<UserEntity> {
     const checkUserWithId = await this.userRepository.findOne({
       where: { id, isDisabled: false },
-      relations: ['avatar', 'posts'],
+      relations: ['avatar', 'posts', 'comments'],
     });
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
     checkUserWithId.posts = checkUserWithId.posts.filter(
       (item) => item.mode !== EMode.PRIVATE,
     );
-    delete checkUserWithId.password;
-    delete checkUserWithId.postId;
-    delete checkUserWithId.avatarImg;
+    if (checkUserWithId) {
+      delete checkUserWithId.password;
+      delete checkUserWithId.postIds;
+      delete checkUserWithId.commentIds;
+      delete checkUserWithId.avatarImg;
+    }
     return checkUserWithId;
   }
 
@@ -62,10 +63,9 @@ export class UsersService {
       where: { email },
       relations: ['avatar', 'posts'],
     });
-    // if (!checkUserWithEmail)
-    //   throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
+
     if (checkUserWithEmail) {
-      delete checkUserWithEmail.postId;
+      delete checkUserWithEmail.postIds;
       delete checkUserWithEmail.avatarImg;
     }
     return checkUserWithEmail;

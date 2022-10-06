@@ -8,8 +8,8 @@ import { Repository } from 'typeorm';
 import {
   CreateLinksPreviewDto,
   UpdateLinksPreviewDto,
-} from './dto/links-preview.dto';
-import { LinksPreviewEntity } from './entities/links-preview.entity';
+} from '../dto/links-preview.dto';
+import { LinksPreviewEntity } from '../entities/links-preview.entity';
 
 @Injectable()
 export class LinksPreviewService {

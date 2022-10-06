@@ -9,6 +9,7 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Query,
   Req,
   Res,
   UploadedFile,
@@ -23,23 +24,45 @@ import { of } from 'rxjs';
 import { env, storageOfUploadFile } from 'src/configs/common.config';
 import { decoded } from 'src/helpers/common.helper';
 import { CustomFileInterceptor } from 'src/interceptors/uploadFile.interceptor';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { IAuthCookie } from '../auth/interfaces/auth.interface';
-import { UpdateFileDto } from '../files/dto/file.dto';
-import { FilesService } from '../files/files.service';
-import { UpdateUserDto } from './dto/user.dto';
-import { UsersService } from './users.service';
+import { JwtAuthGuard } from 'src/modules/auth/guards/jwt.guard';
+import { IAuthCookie } from 'src/modules/auth/interfaces/auth.interface';
+import { UpdateFileDto } from 'src/modules/files/dto/file.dto';
+import { FilesService } from 'src/modules/files/services/files.service';
+import { UpdateUserDto } from '../dto/user.dto';
+import { FriendRequestService } from '../services/friend-request.service';
+import { UsersService } from '../services/users.service';
+
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly filesService: FilesService,
+    private readonly friendRequestService: FriendRequestService,
   ) {}
 
   @Get()
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @Get('list-friends')
+  async listFriends(@Req() request: Request, @Query('userId') userId: string) {
+    if (userId)
+      return await this.friendRequestService.listFriendsOfUser(userId);
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
+    return await this.friendRequestService.listFriendsOfUser(currentUser.id);
+  }
+  @Get('list-friends/:userId')
+  async findAFriendOfUser(
+    @Req() request: Request,
+    @Param('userId') userId: string,
+  ) {
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
+    return await this.friendRequestService.findAFriendOfUser(
+      currentUser.id,
+      userId,
+    );
   }
 
   @Get('detail/:uuid')

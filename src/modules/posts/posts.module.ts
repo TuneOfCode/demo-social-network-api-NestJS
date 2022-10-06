@@ -6,8 +6,8 @@ import { LinksPreviewModule } from '../links-preview/links-preview.module';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersModule } from '../users/users.module';
 import { PostEntity } from './entities/post.entity';
-import { PostsController } from './posts.controller';
-import { PostsService } from './posts.service';
+import { PostsController } from './controllers/posts.controller';
+import { PostsService } from './services/posts.service';
 
 @Module({
   imports: [

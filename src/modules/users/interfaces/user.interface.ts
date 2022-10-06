@@ -1,4 +1,3 @@
-import { FileEntity } from 'src/modules/files/entities/file.entity';
 import { IFile } from 'src/modules/files/interfaces/file.interface';
 
 export interface IUser {

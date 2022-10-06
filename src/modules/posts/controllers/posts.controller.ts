@@ -10,24 +10,29 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { join } from 'path';
 import { of } from 'rxjs';
 import { env, storageOfUploadFile } from 'src/configs/common.config';
+import { decoded } from 'src/helpers/common.helper';
 import { CustomFileInterceptor } from 'src/interceptors/uploadFile.interceptor';
-import { CurrentUser } from '../auth/decorator/user.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt.guard';
-import { CreateFileDto, UpdateFileDto } from '../files/dto/file.dto';
-import { FilesService } from '../files/files.service';
-import { IFile } from '../files/interfaces/file.interface';
-import { IUser } from '../users/interfaces/user.interface';
-import { UsersService } from '../users/users.service';
-import { CreatePostDto, UpdatePostDto } from './dto/post.dto';
-import { PostsService } from './posts.service';
+import { CurrentUser } from '../../auth/decorator/user.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt.guard';
+import { IAuthCookie } from '../../auth/interfaces/auth.interface';
+import { CreateFileDto, UpdateFileDto } from '../../files/dto/file.dto';
+import { FilesService } from '../../files/services/files.service';
+import { IFile } from '../../files/interfaces/file.interface';
+import { IUser } from '../../users/interfaces/user.interface';
+
+import { CreatePostDto, UpdatePostDto } from '../dto/post.dto';
+import { PostsService } from '../services/posts.service';
+import { UsersService } from 'src/modules/users/services/users.service';
 
 @Controller('posts')
 export class PostsController {
@@ -73,7 +78,6 @@ export class PostsController {
       }
     }
     if (!user && !newFiles) throw new BadRequestException();
-    delete user.password;
     const newPostCreated = await this.postsService.create(
       createPostDto,
       user,
@@ -83,6 +87,15 @@ export class PostsController {
     delete newPostCreated.link;
     delete newPostCreated.mediaFiles;
     return newPostCreated;
+  }
+
+  @Get()
+  async findAll(@Query('page') page: string, @Query('limit') limit: string) {
+    if (!page && !limit) return await this.postsService.findAll();
+    return await this.postsService.paginate({
+      page: page ? +page : 1,
+      limit: limit ? +limit : 2,
+    });
   }
 
   @Get('public-to-everyone')
@@ -112,9 +125,12 @@ export class PostsController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get('detail/:uuid')
-  async findOne(@Param('uuid') uuid: string) {
+  async findById(@Req() request: Request, @Param('uuid') uuid: string) {
+    // const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
+    // if (currentUser && currentUser.id) {
+    //   return await this.postsService.findById(uuid);
+    // }
     return await this.postsService.findById(uuid);
   }
 

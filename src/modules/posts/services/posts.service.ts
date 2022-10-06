@@ -9,18 +9,19 @@ import * as fs from 'fs';
 import { join } from 'path';
 import { env, storageOfUploadFile } from 'src/configs/common.config';
 import { getLinkPreview } from 'src/helpers/common.helper';
-import { DeleteResult, Repository, UpdateResult } from 'typeorm';
-import { FilesService } from '../files/files.service';
-import { IFile } from '../files/interfaces/file.interface';
-import { ILinkPreview } from '../links-preview/interfaces/links-preview.interface';
-import { LinksPreviewService } from '../links-preview/links-preview.service';
-import { Pagination } from '../paginations/index.pagination';
-import { IPaginationOptions } from '../paginations/interfaces/options.interface';
-import { IUser } from '../users/interfaces/user.interface';
-import { UsersService } from '../users/users.service';
-import { CreatePostDto, UpdatePostDto } from './dto/post.dto';
-import { PostEntity } from './entities/post.entity';
-import { EMode } from './interfaces/post.interface';
+import { DeleteResult, In, Repository, UpdateResult } from 'typeorm';
+import { IAuthCookie } from '../../auth/interfaces/auth.interface';
+import { FilesService } from '../../files/services/files.service';
+import { IFile } from '../../files/interfaces/file.interface';
+import { ILinkPreview } from '../../links-preview/interfaces/links-preview.interface';
+import { LinksPreviewService } from '../../links-preview/services/links-preview.service';
+import { Pagination } from '../../paginations/index.pagination';
+import { IPaginationOptions } from '../../paginations/interfaces/options.interface';
+import { IUser } from '../../users/interfaces/user.interface';
+import { UsersService } from 'src/modules/users/services/users.service';
+import { CreatePostDto, UpdatePostDto } from '../dto/post.dto';
+import { PostEntity } from '../entities/post.entity';
+import { EMode } from '../interfaces/post.interface';
 
 @Injectable()
 export class PostsService {
@@ -45,18 +46,18 @@ export class PostsService {
         updatedAt: 'DESC',
       },
     });
-    const user = await this.findAll();
+    const posts = await this.findAll();
     const paginates = new Pagination<PostEntity>({
       data: data,
       paginate: {
         records: data.length,
         page: options.page < 1 ? 1 : options.page,
         limit: options.limit,
-        pages: user.length / options.limit,
+        pages: posts.length / options.limit,
         previous: index - options.limit < 0 ? 0 : index - options.limit,
         next:
-          index + options.limit > user.length
-            ? user.length - options.limit
+          index + options.limit > posts.length
+            ? posts.length - options.limit
             : index + options.limit,
       },
     });
@@ -158,6 +159,9 @@ export class PostsService {
 
   async findAll(): Promise<PostEntity[]> {
     return await this.postsRepository.find({
+      where: {
+        mode: In([EMode.PUBLIC_EVERYONE, EMode.PUBLIC_FRIENDS]),
+      },
       order: {
         createdAt: 'DESC',
         updatedAt: 'DESC',
@@ -186,7 +190,11 @@ export class PostsService {
 
   async findById(id: string): Promise<PostEntity> {
     const checkPostWithId = await this.postsRepository.findOne({
-      where: { id },
+      // where: { id, mode: In([EMode.PUBLIC_EVERYONE, EMode.PUBLIC_FRIENDS]) },
+      where: [
+        { id: id },
+        { mode: In([EMode.PUBLIC_EVERYONE, EMode.PUBLIC_FRIENDS]) },
+      ],
       relations: ['author', 'link', 'mediaFiles'],
     });
     if (!checkPostWithId)
@@ -195,6 +203,21 @@ export class PostsService {
     delete checkPostWithId.linkId;
     delete checkPostWithId.author.password;
     delete checkPostWithId.files;
+    return checkPostWithId;
+  }
+
+  async findByIdWithModePublicEveryone(id: string): Promise<PostEntity> {
+    const checkPostWithId = await this.postsRepository.findOne({
+      where: { id, mode: In([EMode.PUBLIC_EVERYONE]) },
+      relations: ['author', 'link', 'mediaFiles'],
+    });
+    if (!checkPostWithId)
+      throw new HttpException('Post does not found', HttpStatus.NOT_FOUND);
+    delete checkPostWithId.authorId;
+    delete checkPostWithId.linkId;
+    delete checkPostWithId.author.password;
+    delete checkPostWithId.files;
+
     return checkPostWithId;
   }
 
@@ -216,7 +239,7 @@ export class PostsService {
       updatePostDto.author = user;
     }
 
-    if (Object.keys(files).length > 0) {
+    if (Object.keys(files).length > 0 && checkPostWithId.mediaFiles) {
       for (let i = 0; i < files.length; i++) {
         await this.filesService.create(files[i]);
       }

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { LinksPreviewController } from '../links-preview.controller';
-import { LinksPreviewService } from '../links-preview.service';
+import { LinksPreviewController } from '../controllers/links-preview.controller';
+import { LinksPreviewService } from '../services/links-preview.service';
 
 describe('LinksPreviewController', () => {
   let controller: LinksPreviewController;

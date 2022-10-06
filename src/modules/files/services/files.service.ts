@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateFileDto, UpdateFileDto } from './dto/file.dto';
-import { FileEntity } from './entities/file.entity';
+import { CreateFileDto, UpdateFileDto } from '../dto/file.dto';
+import { FileEntity } from '../entities/file.entity';
 
 @Injectable()
 export class FilesService {

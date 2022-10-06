@@ -1,3 +1,4 @@
+import { CommentEntity } from 'src/modules/comments/entities/comment.entity';
 import { PostEntity } from 'src/modules/posts/entities/post.entity';
 import {
   Column,
@@ -17,10 +18,10 @@ export class LinksPreviewEntity implements ILinkPreview {
   @Column({ length: '1000' })
   url: string;
 
-  @Column({ length: '200', nullable: true })
+  @Column({ length: '500', nullable: true })
   title?: string;
 
-  @Column({ length: '300', nullable: true })
+  @Column({ length: '500', nullable: true })
   description?: string;
 
   @Column({ length: '500', nullable: true })
@@ -34,6 +35,12 @@ export class LinksPreviewEntity implements ILinkPreview {
     onDelete: 'CASCADE',
   })
   post: PostEntity;
+
+  @OneToOne(() => CommentEntity, (comment) => comment.link, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  comment: CommentEntity;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

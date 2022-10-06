@@ -1,3 +1,4 @@
+import { CommentEntity } from 'src/modules/comments/entities/comment.entity';
 import { PostEntity } from 'src/modules/posts/entities/post.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
 import {
@@ -38,6 +39,13 @@ export class FileEntity implements IFile {
   })
   @JoinColumn()
   posts: PostEntity[];
+
+  @ManyToOne(() => CommentEntity, (comment) => comment.mediaFiles, {
+    onUpdate: 'CASCADE',
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn()
+  comments: CommentEntity[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

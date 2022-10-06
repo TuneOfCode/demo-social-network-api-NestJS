@@ -8,10 +8,11 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { env } from 'src/configs/common.config';
-import { CreateUserDto } from '../users/dto/user.dto';
-import { IUser } from '../users/interfaces/user.interface';
-import { UsersService } from '../users/users.service';
-import { LoginUserDto } from './dto/auth.dto';
+import { UsersService } from 'src/modules/users/services/users.service';
+import { CreateUserDto } from '../../users/dto/user.dto';
+import { IUser } from '../../users/interfaces/user.interface';
+import { LoginUserDto } from '../dto/auth.dto';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -96,9 +97,17 @@ export class AuthService {
   }
 
   async getMe(user: IUser) {
-    const checkUserWithEmail = await this.usersService.findByEmail(user.email);
+    let checkUserWithEmail = await this.usersService.findByEmail(user.email);
     if (!checkUserWithEmail) throw new UnauthorizedException();
     delete checkUserWithEmail.password;
+    checkUserWithEmail = {
+      ...checkUserWithEmail,
+      postIds: checkUserWithEmail.posts.map((item) => item.id),
+      avatarImg: checkUserWithEmail.avatar?.fileName,
+    };
+    delete checkUserWithEmail.avatar;
+    delete checkUserWithEmail.posts;
+
     return checkUserWithEmail;
   }
 }

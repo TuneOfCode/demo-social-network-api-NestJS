@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import {
   registerDecorator,
+  ValidationArguments,
   ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
-  ValidationArguments,
 } from 'class-validator';
-import { isEmptyInObject } from 'src/helpers/common.helper';
-import { UsersService } from '../users.service';
+import { UsersService } from '../services/users.service';
+
 @ValidatorConstraint({ name: 'IsEmailAlreadyExist', async: true })
 @Injectable()
 export class IsEmailAlreadyExistContraint

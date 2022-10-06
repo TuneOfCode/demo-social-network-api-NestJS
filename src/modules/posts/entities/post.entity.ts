@@ -1,3 +1,5 @@
+import { CommentEntity } from 'src/modules/comments/entities/comment.entity';
+import { IComment } from 'src/modules/comments/interfaces/comment.interface';
 import { FileEntity } from 'src/modules/files/entities/file.entity';
 import { LinksPreviewEntity } from 'src/modules/links-preview/entities/links-preview.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
@@ -39,7 +41,10 @@ export class PostEntity implements IPost {
   @Column({ nullable: true })
   hashtag?: string;
 
-  @Column()
+  @Column({
+    type: 'enum',
+    enum: EMode,
+  })
   mode: EMode;
 
   @Column({ default: true })
@@ -57,6 +62,9 @@ export class PostEntity implements IPost {
   })
   @JoinColumn()
   author: IUser;
+
+  @OneToMany(() => CommentEntity, (comments) => comments.post)
+  comments: IComment[];
 
   @RelationId((post: PostEntity) => post.author)
   authorId: string;

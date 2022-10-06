@@ -30,6 +30,7 @@ export const env = {
 export const storageOfUploadFile = {
   user: 'avatars',
   post: 'posts',
+  comment: 'comments',
 };
 
 export default configuration;
