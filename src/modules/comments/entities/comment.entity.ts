@@ -1,3 +1,4 @@
+import { EmotionEntity } from 'src/modules/emotions/entities/emotion.entity';
 import { FileEntity } from 'src/modules/files/entities/file.entity';
 import { IFile } from 'src/modules/files/interfaces/file.interface';
 import { LinksPreviewEntity } from 'src/modules/links-preview/entities/links-preview.entity';
@@ -34,7 +35,7 @@ export class CommentEntity implements IComment {
 
   @OneToOne(() => LinksPreviewEntity, (link) => link.comment)
   @JoinColumn()
-  link?: ILinkPreview;
+  link?: LinksPreviewEntity;
 
   @RelationId((comments: CommentEntity) => comments.link)
   linkId: string;
@@ -56,7 +57,7 @@ export class CommentEntity implements IComment {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  creator: IUser;
+  creator: UserEntity;
 
   @RelationId((comments: CommentEntity) => comments.creator)
   creatorId: string;
@@ -66,16 +67,22 @@ export class CommentEntity implements IComment {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  post: IPost;
+  post: PostEntity;
 
   @RelationId((comments: CommentEntity) => comments.post)
   postId: string;
 
+  @OneToMany(() => EmotionEntity, (emotions) => emotions.comment)
+  emotions: EmotionEntity[];
+
+  @RelationId((comments: CommentEntity) => comments.emotions)
+  emotionIds: string[];
+
   @TreeChildren({ cascade: true })
-  childrentComments: IComment[];
+  childrentComments: CommentEntity[];
 
   @TreeParent({ onDelete: 'CASCADE' })
-  parentComment: IComment;
+  parentComment: CommentEntity;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

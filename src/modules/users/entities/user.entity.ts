@@ -1,4 +1,5 @@
 import { CommentEntity } from 'src/modules/comments/entities/comment.entity';
+import { EmotionEntity } from 'src/modules/emotions/entities/emotion.entity';
 import { FileEntity } from 'src/modules/files/entities/file.entity';
 import { PostEntity } from 'src/modules/posts/entities/post.entity';
 import {
@@ -55,8 +56,20 @@ export class UserEntity implements IUser {
   @OneToMany(() => FriendRequestEntity, (friends) => friends.sender)
   sentFriendRequests: FriendRequestEntity[];
 
+  @RelationId((user: UserEntity) => user.sentFriendRequests)
+  senderIds: string[];
+
   @OneToMany(() => FriendRequestEntity, (friends) => friends.receiver)
   receivedFriendRequests: FriendRequestEntity[];
+
+  @RelationId((user: UserEntity) => user.receivedFriendRequests)
+  receiverIds: string[];
+
+  @OneToMany(() => EmotionEntity, (emotions) => emotions.creator)
+  emotions: EmotionEntity[];
+
+  @RelationId((user: UserEntity) => user.emotions)
+  emotionIds: string[];
 
   @Column({ default: false })
   isDisabled: boolean;

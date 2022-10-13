@@ -51,21 +51,21 @@ export class AuthService {
         HttpStatus.BAD_REQUEST,
       );
     const isMatchPassword = await bcrypt.compare(password, checkUser.password);
-    if (!checkUser) {
-      throw new HttpException(
-        `Email ${email} doesn't exist`,
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
     if (!isMatchPassword) {
-      throw new HttpException(`Incorrect password`, HttpStatus.UNAUTHORIZED);
+      throw new HttpException(`Incorrect password`, HttpStatus.BAD_REQUEST);
     }
 
     return checkUser;
   }
 
   async generateToken(user: IUser) {
-    const payload = { email: user.email };
+    const { email, fullname, id, isDisabled } = user;
+    const payload = {
+      email,
+      fullname,
+      id,
+      isDisabled,
+    };
     const accessToken = this.jwtService.sign(payload, {
       secret: env.JWT_ACCESS_TOKEN_SECRET,
       expiresIn: env.JWT_ACCESS_TOKEN_EXPIES_IN,
@@ -80,33 +80,45 @@ export class AuthService {
     };
   }
 
+  async getUserFromAuthToken(token: string) {
+    const payload = this.jwtService.verify(token, {
+      secret: env.JWT_REFRESH_TOKEN_SECRET,
+    });
+    if (!payload) throw new BadRequestException('Token does not exist');
+    const authUser = await this.usersService.findById(payload?.id);
+    return authUser;
+  }
+
   async updateAccessToken(refreshTokenInCookie: string) {
     try {
-      const decode = this.jwtService.verify(refreshTokenInCookie, {
-        secret: env.JWT_REFRESH_TOKEN_SECRET,
-      });
-      if (!decode) throw new BadRequestException('Refresh token has expired');
+      const decode = await this.getUserFromAuthToken(refreshTokenInCookie);
       const newAccessToken = (await this.generateToken(decode)).accessToken;
       return {
         accessToken: newAccessToken,
       };
     } catch (error) {
       console.log(error);
-      throw new BadRequestException('Invalid refresh token');
+      throw new BadRequestException('Invalid token');
     }
   }
 
   async getMe(user: IUser) {
     let checkUserWithEmail = await this.usersService.findByEmail(user.email);
     if (!checkUserWithEmail) throw new UnauthorizedException();
-    delete checkUserWithEmail.password;
+
     checkUserWithEmail = {
       ...checkUserWithEmail,
       postIds: checkUserWithEmail.posts.map((item) => item.id),
       avatarImg: checkUserWithEmail.avatar?.fileName,
     };
-    delete checkUserWithEmail.avatar;
-    delete checkUserWithEmail.posts;
+
+    delete checkUserWithEmail?.avatar;
+    delete checkUserWithEmail?.password;
+    delete checkUserWithEmail?.posts;
+    delete checkUserWithEmail?.comments;
+    delete checkUserWithEmail?.sentFriendRequests;
+    delete checkUserWithEmail?.receivedFriendRequests;
+    delete checkUserWithEmail?.emotions;
 
     return checkUserWithEmail;
   }

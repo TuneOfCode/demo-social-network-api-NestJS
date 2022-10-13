@@ -1,5 +1,6 @@
 import { CommentEntity } from 'src/modules/comments/entities/comment.entity';
 import { IComment } from 'src/modules/comments/interfaces/comment.interface';
+import { EmotionEntity } from 'src/modules/emotions/entities/emotion.entity';
 import { FileEntity } from 'src/modules/files/entities/file.entity';
 import { LinksPreviewEntity } from 'src/modules/links-preview/entities/links-preview.entity';
 import { UserEntity } from 'src/modules/users/entities/user.entity';
@@ -61,13 +62,22 @@ export class PostEntity implements IPost {
     onDelete: 'CASCADE',
   })
   @JoinColumn()
-  author: IUser;
-
-  @OneToMany(() => CommentEntity, (comments) => comments.post)
-  comments: IComment[];
+  author: UserEntity;
 
   @RelationId((post: PostEntity) => post.author)
   authorId: string;
+
+  @OneToMany(() => CommentEntity, (comments) => comments.post)
+  comments: CommentEntity[];
+
+  @RelationId((post: PostEntity) => post.comments)
+  commentIds: string[];
+
+  @OneToMany(() => EmotionEntity, (emotions) => emotions.post)
+  emotions: EmotionEntity[];
+
+  @RelationId((post: PostEntity) => post.emotions)
+  emotionIds: string[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

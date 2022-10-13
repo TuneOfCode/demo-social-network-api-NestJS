@@ -16,7 +16,10 @@ export class CreatePostDto {
   hashtag: string;
 
   @IsOptional()
-  @IsEnum(EMode, { each: true })
+  @IsEnum(EMode, {
+    each: true,
+    message: `Mode include: ${EMode.PRIVATE} | ${EMode.PUBLIC_FRIENDS} | ${EMode.PUBLIC_EVERYONE}`,
+  })
   mode: EMode;
 
   mediaFiles?: IFile[];

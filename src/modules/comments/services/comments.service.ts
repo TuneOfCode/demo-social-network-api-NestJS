@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -46,6 +47,8 @@ export class CommentsService {
     if (!checkPostWithId) throw new BadRequestException('Post does not exist');
     createCommentDto.post = checkPostWithId;
 
+    if (!checkPostWithId.isComment)
+      throw new ForbiddenException('This post does not allow comments');
     if (files && files.length > 0) {
       createCommentDto.mediaFiles = files;
       for (let i = 0; i < files.length; i++) {
@@ -62,11 +65,10 @@ export class CommentsService {
       where: [
         {
           id: createCommentDto.parentCommentId,
+          post: { id: createCommentDto.postId },
         },
       ],
     });
-    if (parent.postId !== createCommentDto.postId)
-      throw new BadRequestException('Parent comment does not exist in post');
     console.log('parent: ', parent);
     if (!parent) throw new BadRequestException('Parent comment does not exist');
     const newCommentReply = await this.commentsRepository.create(
@@ -76,8 +78,8 @@ export class CommentsService {
     return await this.commentsRepository.save(newCommentReply);
   }
 
-  async putLinkPreviewIntoComment(id: string) {
-    const checkCommentWithId = await this.findById(id);
+  async putLinkPreviewIntoComment(commentId: string) {
+    const checkCommentWithId = await this.findById(commentId);
     if (checkCommentWithId.text && !checkCommentWithId.link) {
       const linkPreview = await getLinkPreview(checkCommentWithId.text);
       if (linkPreview.url && Object.keys(linkPreview.data).length > 0) {
@@ -89,7 +91,7 @@ export class CommentsService {
           linkIframe: linkPreview.data.linkIframe,
         };
         const newLinkCreated = await this.linksPreviewService.create(newLink);
-        await this.commentsRepository.update(id, {
+        await this.commentsRepository.update(commentId, {
           link: {
             ...newLink,
             id: newLinkCreated.id,
@@ -128,7 +130,9 @@ export class CommentsService {
           id: newLinkCreated.id,
         };
       }
-      await this.commentsRepository.update(id, { link: linkInCommentDto });
+      await this.commentsRepository.update(commentId, {
+        link: linkInCommentDto,
+      });
     }
     return;
   }
@@ -150,10 +154,10 @@ export class CommentsService {
     return checkCommentWithPostId;
   }
 
-  async findById(id: string) {
+  async findById(commentId: string) {
     const checkCommentWithId = await this.commentsRepository.manager
       .getTreeRepository(CommentEntity)
-      .findOne({ where: { id, isShow: true } });
+      .findOne({ where: [{ id: commentId, isShow: true }] });
 
     if (!checkCommentWithId)
       throw new NotFoundException('Comment does not found');
@@ -161,27 +165,27 @@ export class CommentsService {
     return checkCommentWithId;
   }
 
-  async findByIdWithDepth(id: string, level?: number) {
-    const checkComment = await this.findById(id);
+  async findByIdWithDepth(commentId: string, level?: number) {
+    const checkCommentWithId = await this.findById(commentId);
     const checkChildCommentWithParent = await this.commentsRepository.manager
       .getTreeRepository(CommentEntity)
-      .findDescendantsTree(checkComment, { depth: level - 1 });
+      .findDescendantsTree(checkCommentWithId, { depth: level - 1 });
 
-    // console.log('checkComment: ', checkComment);
-    if (checkComment && !checkComment.isShow)
+    // console.log('checkCommentWithId: ', checkCommentWithId);
+    if (checkCommentWithId && !checkCommentWithId.isShow)
       throw new NotFoundException('This comment was hidden');
-    if (!checkComment && !checkChildCommentWithParent)
+    if (!checkCommentWithId && !checkChildCommentWithParent)
       throw new NotFoundException('Comment does not found');
     return checkChildCommentWithParent;
   }
 
   async update(
-    id: string,
+    commentId: string,
     updateCommentDto: UpdateCommentDto,
     user: IUser,
     files: IFile[],
   ): Promise<UpdateResult> {
-    const checkCommentWithId = await this.findById(id);
+    const checkCommentWithId = await this.findById(commentId);
     if (!checkCommentWithId)
       throw new BadRequestException('Post does not exist');
 
@@ -200,7 +204,7 @@ export class CommentsService {
       await this.commentsRepository
         .createQueryBuilder()
         .relation(CommentEntity, 'mediaFiles')
-        .of(id)
+        .of(commentId)
         .addAndRemove(files, checkCommentWithId.mediaFiles);
       const oldFilesInPost = checkCommentWithId.mediaFiles;
       for (let i = 0; i < Object.keys(oldFilesInPost).length; i++) {
@@ -220,21 +224,21 @@ export class CommentsService {
       }
     }
 
-    await this.commentsRepository.update(id, updateCommentDto);
+    await this.commentsRepository.update(commentId, updateCommentDto);
 
     return;
   }
 
-  async hide(id: string) {
-    const checkCommentWithId = await this.findById(id);
+  async hide(commentId: string) {
+    const checkCommentWithId = await this.findById(commentId);
     await this.commentsRepository.update(checkCommentWithId.id, {
       isShow: false,
     });
     return;
   }
 
-  async show(id: string) {
-    const checkCommentWithId = await this.findById(id);
+  async show(commentId: string) {
+    const checkCommentWithId = await this.findById(commentId);
     await this.commentsRepository.update(checkCommentWithId.id, {
       isShow: true,
       denounce: 0,
@@ -242,23 +246,23 @@ export class CommentsService {
     return;
   }
 
-  async denounce(id: string) {
-    const checkCommentWithId = await this.findById(id);
+  async denounce(commentId: string) {
+    const checkCommentWithId = await this.findById(commentId);
     await this.commentsRepository.update(checkCommentWithId.id, {
       denounce: checkCommentWithId.denounce + 1,
     });
     checkCommentWithId.denounce += 1;
     console.log('checkCommentWithId.denounce: ', checkCommentWithId.denounce);
-    // Nếu có từ 3 trở lên thì ban
-    if (checkCommentWithId.denounce > 2) await this.hide(id);
+    // Nếu có từ 3 trở lên thì ẩn bình luận này
+    if (checkCommentWithId.denounce > 2) await this.hide(commentId);
     return;
   }
 
-  async destroy(id: string): Promise<DeleteResult> {
-    const checkCommentWithId = await this.findById(id);
+  async destroy(commentId: string): Promise<DeleteResult> {
+    const checkCommentWithId = await this.findById(commentId);
     if (!checkCommentWithId)
       throw new BadRequestException('Comment does not exist');
-    await this.commentsRepository.delete(id);
+    await this.commentsRepository.delete(commentId);
     if (checkCommentWithId.link) {
       await this.linksPreviewService.destroy(checkCommentWithId.link.id);
     }

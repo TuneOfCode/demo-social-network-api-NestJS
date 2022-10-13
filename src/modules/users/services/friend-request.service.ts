@@ -46,7 +46,11 @@ export class FriendRequestService {
         where: [
           {
             sender: { id: senderId },
-            receiver: { id: checkUserWithReceiverId.id },
+            receiver: { id: receiverId },
+          },
+          {
+            sender: { id: receiverId },
+            receiver: { id: senderId },
           },
         ],
       });
@@ -103,6 +107,44 @@ export class FriendRequestService {
     return friends;
   }
 
+  async isFriend(userOneId: string, userTwoId: string) {
+    const checkUserOneWithId = await this.usersService.findById(userOneId);
+    const checkUserTwoWithId = await this.usersService.findById(userTwoId);
+    if (userOneId === userTwoId) {
+      const isFriend = await this.friendRequestRepository.findOne({
+        where: [
+          {
+            sender: { id: checkUserOneWithId.id },
+            status: EFriendRequestStatus.ACCEPTED,
+          },
+          {
+            receiver: { id: checkUserTwoWithId.id },
+            status: EFriendRequestStatus.ACCEPTED,
+          },
+        ],
+      });
+      if (isFriend) return true;
+      return false;
+    }
+    const isFriend = await this.friendRequestRepository.findOne({
+      where: [
+        {
+          sender: { id: checkUserOneWithId.id },
+          receiver: { id: checkUserTwoWithId.id },
+          status: EFriendRequestStatus.ACCEPTED,
+        },
+        {
+          sender: { id: checkUserTwoWithId.id },
+          receiver: { id: checkUserTwoWithId.id },
+          status: EFriendRequestStatus.ACCEPTED,
+        },
+      ],
+    });
+
+    if (isFriend) return true;
+    return false;
+  }
+
   async findAFriendOfUser(senderId: string, id: string) {
     const checkUserWithId = await this.usersService.findById(id);
     const friend = await this.friendRequestRepository.findOne({
@@ -157,8 +199,30 @@ export class FriendRequestService {
     const checkUserWithReceiverId = await this.usersService.findById(
       receiverId,
     );
+
     if (senderId === receiverId)
       throw new BadRequestException('Sender and Receiver are not the same');
+
+    const isCheckFriendRequestWithSenderIdAndReceiverId =
+      await this.friendRequestRepository.findOne({
+        where: [
+          {
+            sender: { id: senderId },
+            receiver: { id: checkUserWithReceiverId.id },
+            status: EFriendRequestStatus.PENDING,
+          },
+          {
+            sender: { id: checkUserWithReceiverId.id },
+            receiver: { id: senderId },
+            status: EFriendRequestStatus.PENDING,
+          },
+        ],
+      });
+    if (!isCheckFriendRequestWithSenderIdAndReceiverId)
+      throw new BadRequestException(
+        "Haven't sent a friend request or are already friends",
+      );
+
     const checkFriendRequestWithSenderIdAndReceiverId =
       await this.friendRequestRepository.findOne({
         where: [
@@ -184,6 +248,26 @@ export class FriendRequestService {
     );
     if (senderId === receiverId)
       throw new BadRequestException('Sender and Receiver are not the same');
+
+    const isCheckFriendRequestWithSenderIdAndReceiverId =
+      await this.friendRequestRepository.findOne({
+        where: [
+          {
+            sender: { id: senderId },
+            receiver: { id: checkUserWithReceiverId.id },
+            status: EFriendRequestStatus.PENDING,
+          },
+          {
+            sender: { id: checkUserWithReceiverId.id },
+            receiver: { id: senderId },
+            status: EFriendRequestStatus.PENDING,
+          },
+        ],
+      });
+    if (!isCheckFriendRequestWithSenderIdAndReceiverId)
+      throw new BadRequestException(
+        "Haven't sent a friend request or are already friends",
+      );
     const checkFriendRequestWithSenderIdAndReceiverId =
       await this.friendRequestRepository.findOne({
         where: [

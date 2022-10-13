@@ -9,6 +9,8 @@ import { FilesModule } from './modules/files/files.module';
 import { LinksPreviewModule } from './modules/links-preview/links-preview.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { UsersModule } from './modules/users/users.module';
+import { EmotionsModule } from './modules/emotions/emotions.module';
+// import { GatewayModule } from './modules/gateway/gateway.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -22,6 +24,8 @@ import { UsersModule } from './modules/users/users.module';
     PostsModule,
     LinksPreviewModule,
     CommentsModule,
+    EmotionsModule,
+    // GatewayModule,
   ],
   controllers: [],
   providers: [],

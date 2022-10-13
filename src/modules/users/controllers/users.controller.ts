@@ -56,7 +56,7 @@ export class UsersController {
   @Get('list-friends/:userId')
   async findAFriendOfUser(
     @Req() request: Request,
-    @Param('userId') userId: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
   ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     return await this.friendRequestService.findAFriendOfUser(
@@ -65,12 +65,12 @@ export class UsersController {
     );
   }
 
-  @Get('detail/:uuid')
-  findById(@Param('uuid', new ParseUUIDPipe()) uuid: string) {
-    return this.usersService.findById(uuid);
+  @Get('detail/:userId')
+  findById(@Param('userId', new ParseUUIDPipe()) userId: string) {
+    return this.usersService.findById(userId);
   }
 
-  @Patch('edit/:uuid')
+  @Patch('edit/:userId')
   @UseInterceptors(
     CustomFileInterceptor({
       typeUpload: 'single',
@@ -81,18 +81,18 @@ export class UsersController {
     }),
   )
   async update(
-    @Param('uuid', new ParseUUIDPipe()) uuid: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
     @Body() updateUserDto: UpdateUserDto,
     @Req() request: Request,
     @UploadedFile() file: Express.Multer.File,
   ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
-    if (currentUser.id !== uuid)
+    if (currentUser.id !== userId)
       throw new HttpException(
         'Do not have permission to access this resource',
         HttpStatus.FORBIDDEN,
       );
-    const checkUserWithId = await this.usersService.findById(uuid);
+    const checkUserWithId = await this.usersService.findById(userId);
     if (file) {
       const editFile: UpdateFileDto = {
         fileName: file.filename,
@@ -118,47 +118,47 @@ export class UsersController {
         }
       }
     }
-    return await this.usersService.update(uuid, updateUserDto);
+    return await this.usersService.update(userId, updateUserDto);
   }
 
-  @Patch('disable/:uuid')
+  @Patch('disable/:userId')
   disable(
-    @Param('uuid', new ParseUUIDPipe()) uuid: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
-    if (currentUser.id !== uuid)
+    if (currentUser.id !== userId)
       throw new HttpException(
         'Do not have permission to access this resource',
         HttpStatus.FORBIDDEN,
       );
     response.clearCookie(env.JWT_COOKIE);
-    return this.usersService.disable(uuid);
+    return this.usersService.disable(userId);
   }
 
-  @Patch('restore/:uuid')
+  @Patch('restore/:userId')
   restore(
-    @Param('uuid', new ParseUUIDPipe()) uuid: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
     @Req() request: Request,
   ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
-    if (currentUser.id !== uuid)
+    if (currentUser.id !== userId)
       throw new HttpException(
         'Do not have permission to access this resource',
         HttpStatus.FORBIDDEN,
       );
-    return this.usersService.restore(uuid);
+    return this.usersService.restore(userId);
   }
 
-  @Delete('destroy/:uuid')
+  @Delete('destroy/:userId')
   async remove(
-    @Param('uuid', new ParseUUIDPipe()) uuid: string,
+    @Param('userId', new ParseUUIDPipe()) userId: string,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
-    const checkUserWithId = await this.usersService.findById(uuid);
+    const checkUserWithId = await this.usersService.findById(userId);
     if (checkUserWithId.avatar) {
       const avatarPath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
         storageOfUploadFile.user
@@ -168,7 +168,7 @@ export class UsersController {
       });
     }
     response.clearCookie(env.JWT_COOKIE, { httpOnly: true });
-    return await this.usersService.destroy(uuid, currentUser);
+    return await this.usersService.destroy(userId, currentUser);
   }
 
   @Get('avatar/:fileName')

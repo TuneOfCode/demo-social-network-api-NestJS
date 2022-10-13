@@ -14,16 +14,16 @@ import { Request, Response } from 'express';
 import { env, storageOfUploadFile } from 'src/configs/common.config';
 import { decoded, encoded } from 'src/helpers/common.helper';
 import { CustomFileInterceptor } from 'src/interceptors/uploadFile.interceptor';
+import { FilesService } from 'src/modules/files/services/files.service';
 import { CreateFileDto } from '../../files/dto/file.dto';
 import { CreateUserDto } from '../../users/dto/user.dto';
 import { IUser } from '../../users/interfaces/user.interface';
-import { AuthService } from '../services/auth.service';
 import { CurrentUser } from '../decorator/user.decorator';
 import { LoginUserDto } from '../dto/auth.dto';
 import { JwtAuthGuard } from '../guards/jwt.guard';
 import { LocalAuthGuard } from '../guards/local.guard';
 import { IAuthCookie } from '../interfaces/auth.interface';
-import { FilesService } from 'src/modules/files/services/files.service';
+import { AuthService } from '../services/auth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -93,16 +93,25 @@ export class AuthController {
       body.refreshTokenInLogin &&
       body.refreshTokenInLogin !== authCookie.refreshToken
     ) {
-      console.log('refreshTokenInLogin: ', body.refreshTokenInLogin);
-      console.log('refreshTokenInCookie: ', authCookie.refreshToken);
       throw new BadRequestException('Incorrect refresh token');
     }
+    const payload = await this.authService.getUserFromAuthToken(
+      authCookie.accessToken,
+    );
+
+    console.log('payload: ', payload);
+    // console.log('authCookie: ', authCookie);
+    // const token = request.headers.authorization;
+    // console.log('token: ', token);
     return await this.authService.updateAccessToken(body.refreshTokenInLogin);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async me(@CurrentUser() user: IUser) {
+  async me(@CurrentUser() user: IUser, @Req() request: Request) {
+    console.log('user: ', user);
+    const token = request.headers.authorization;
+    console.log('token: ', token);
     return await this.authService.getMe(user);
   }
 }

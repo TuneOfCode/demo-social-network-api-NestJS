@@ -5,16 +5,22 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  Res,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { join } from 'path';
+import { of } from 'rxjs';
 import { env, storageOfUploadFile } from 'src/configs/common.config';
 import { CustomFileInterceptor } from 'src/interceptors/uploadFile.interceptor';
+import { FilesService } from 'src/modules/files/services/files.service';
 import { UsersService } from 'src/modules/users/services/users.service';
 import { CurrentUser } from '../../auth/decorator/user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt.guard';
@@ -31,6 +37,7 @@ export class CommentsController {
     private readonly commentsService: CommentsService,
     private readonly postsService: PostsService,
     private readonly usersService: UsersService,
+    private readonly filesService: FilesService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -84,22 +91,44 @@ export class CommentsController {
 
   @Get()
   async findAllByPostId(
-    @Query('postId') postId: string,
+    @Query('postId', new ParseUUIDPipe()) postId: string,
     @Query('level') level?: string,
   ) {
     if (!postId && !level) return await this.commentsService.findAll();
     return await this.commentsService.findAllByPostId(postId, +level);
   }
 
-  @Get('detail/:uuid')
-  async findOne(@Param('uuid') uuid: string, @Query('level') level: string) {
+  @Get('detail/:commentId')
+  async findOne(
+    @Param('commentId', new ParseUUIDPipe()) commentId: string,
+    @Query('level') level: string,
+  ) {
     if (level && +level > 0)
-      return await this.commentsService.findByIdWithDepth(uuid, +level);
-    return await this.commentsService.findById(uuid);
+      return await this.commentsService.findByIdWithDepth(commentId, +level);
+    return await this.commentsService.findById(commentId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('edit/:uuid')
+  @Get('media/:fileName')
+  async getMediaFile(@Param('fileName') fileName: string, @Res() response) {
+    try {
+      const mediaFilePath = `${join(process.cwd())}/${env.APP_ROOT_STORAGE}${
+        storageOfUploadFile.comment
+      }/${fileName}`;
+      const checkFileWithFileName = await this.filesService.findByFileName(
+        fileName,
+      );
+      if (!checkFileWithFileName) {
+        throw new NotFoundException('Media of post does not found');
+      }
+      return of(response.sendFile(mediaFilePath));
+    } catch (error) {
+      throw new BadRequestException(error);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('edit/:commentId')
   @UseInterceptors(
     CustomFileInterceptor({
       typeUpload: 'multiple',
@@ -111,7 +140,7 @@ export class CommentsController {
     }),
   )
   async edit(
-    @Param('uuid') uuid: string,
+    @Param('commentId', new ParseUUIDPipe()) commentId: string,
     @Body() updateCommentDto: UpdateCommentDto,
     @CurrentUser() currentUser: IUser,
     @UploadedFiles() files: any,
@@ -121,7 +150,7 @@ export class CommentsController {
       user = await this.usersService.findByEmail(currentUser?.email);
     }
     delete user.password;
-    const checkCommentWithId = await this.commentsService.findById(uuid);
+    const checkCommentWithId = await this.commentsService.findById(commentId);
     console.log('checkPostWithId.author.id: ', checkCommentWithId.creatorId);
     console.log('user.id: ', user.id);
 
@@ -149,7 +178,7 @@ export class CommentsController {
     console.log('new files length: ', newFiles.length);
     if (newFiles.length <= 0) newFiles = [];
     return await this.commentsService.update(
-      uuid,
+      commentId,
       updateCommentDto,
       user,
       newFiles,
@@ -157,34 +186,46 @@ export class CommentsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('edit/link-preview/:uuid')
-  async editLinkPreview(@Param('uuid') uuid: string) {
-    return await this.commentsService.putLinkPreviewIntoComment(uuid);
+  @Patch('edit/link-preview/:commentId')
+  async editLinkPreview(
+    @Param('commentId', new ParseUUIDPipe()) commentId: string,
+    @CurrentUser() currentUser: IUser,
+  ) {
+    const user = await this.usersService.findByEmail(currentUser?.email);
+    const checkCommentWithId = await this.commentsService.findById(commentId);
+    console.log('checkPostWithId.author.id: ', checkCommentWithId.creatorId);
+    console.log('user.id: ', user.id);
+
+    if (checkCommentWithId.creatorId !== user.id)
+      throw new ForbiddenException(
+        'Not authorized because not the creator of this comment',
+      );
+    return await this.commentsService.putLinkPreviewIntoComment(commentId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('denounce/:uuid')
-  async denounce(@Param('uuid') uuid: string) {
-    return await this.commentsService.denounce(uuid);
+  @Patch('denounce/:commentId')
+  async denounce(@Param('commentId', new ParseUUIDPipe()) commentId: string) {
+    return await this.commentsService.denounce(commentId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('show/:uuid')
-  async show(@Param('uuid') uuid: string) {
-    return await this.commentsService.show(uuid);
+  @Patch('show/:commentId')
+  async show(@Param('commentId', new ParseUUIDPipe()) commentId: string) {
+    return await this.commentsService.show(commentId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Delete('destroy/:uuid')
+  @Delete('destroy/:commentId')
   async destroy(
-    @Param('uuid') uuid: string,
+    @Param('commentId', new ParseUUIDPipe()) commentId: string,
     @CurrentUser() currentUser: IUser,
   ) {
     let user: IUser;
     if (currentUser && currentUser?.email) {
       user = await this.usersService.findByEmail(currentUser?.email);
     }
-    const checkCommentWithId = await this.commentsService.findById(uuid);
+    const checkCommentWithId = await this.commentsService.findById(commentId);
     const checkPostWithId = await this.postsService.findById(
       checkCommentWithId.postId,
     );
@@ -201,6 +242,6 @@ export class CommentsController {
       throw new ForbiddenException(
         'Not authorized because not the author of this post',
       );
-    return this.commentsService.destroy(uuid);
+    return this.commentsService.destroy(commentId);
   }
 }

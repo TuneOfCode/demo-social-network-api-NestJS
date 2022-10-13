@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { IAuthCookie } from 'src/modules/auth/interfaces/auth.interface';
 import { FilesService } from 'src/modules/files/services/files.service';
 import { EMode } from 'src/modules/posts/interfaces/post.interface';
-import { DeleteResult, Repository, UpdateResult } from 'typeorm';
+import { DeleteResult, In, Repository, UpdateResult } from 'typeorm';
 import { CreateUserDto, UpdateUserDto } from '../dto/user.dto';
 import { UserEntity } from '../entities/user.entity';
 
@@ -39,54 +39,63 @@ export class UsersService {
     return users;
   }
 
-  async findById(id: string): Promise<UserEntity> {
+  async findById(userId: string): Promise<UserEntity> {
     const checkUserWithId = await this.userRepository.findOne({
-      where: { id, isDisabled: false },
-      relations: ['avatar', 'posts', 'comments'],
+      where: [
+        {
+          id: userId,
+          isDisabled: false,
+          // posts: { mode: In([EMode.PUBLIC_EVERYONE, EMode.PUBLIC_FRIENDS]) },
+        },
+      ],
+      relations: [
+        'avatar',
+        'posts',
+        'comments',
+        'sentFriendRequests',
+        'receivedFriendRequests',
+        'emotions',
+      ],
     });
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.NOT_FOUND);
     checkUserWithId.posts = checkUserWithId.posts.filter(
       (item) => item.mode !== EMode.PRIVATE,
     );
-    if (checkUserWithId) {
-      delete checkUserWithId.password;
-      delete checkUserWithId.postIds;
-      delete checkUserWithId.commentIds;
-      delete checkUserWithId.avatarImg;
-    }
+    delete checkUserWithId?.password;
+    delete checkUserWithId?.avatarImg;
+    delete checkUserWithId?.postIds;
+    delete checkUserWithId?.commentIds;
+    delete checkUserWithId?.senderIds;
+    delete checkUserWithId?.receiverIds;
+    delete checkUserWithId?.emotionIds;
+
     return checkUserWithId;
   }
 
   async findByEmail(email: string): Promise<UserEntity> {
     const checkUserWithEmail = await this.userRepository.findOne({
-      where: { email },
-      relations: ['avatar', 'posts'],
+      where: [{ email }],
+      relations: [
+        'avatar',
+        'posts',
+        'comments',
+        'sentFriendRequests',
+        'receivedFriendRequests',
+        'emotions',
+      ],
     });
-
-    if (checkUserWithEmail) {
-      delete checkUserWithEmail.postIds;
-      delete checkUserWithEmail.avatarImg;
-    }
     return checkUserWithEmail;
   }
 
   async update(
-    id: string,
+    userId: string,
     updateUserDto: UpdateUserDto,
   ): Promise<UpdateResult> {
-    const checkUserWithId = await this.findById(id);
+    const checkUserWithId = await this.findById(userId);
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
 
-    if (updateUserDto.email) {
-      const checkUserWithEmail = await this.findByEmail(updateUserDto.email);
-      if (checkUserWithEmail)
-        throw new HttpException(
-          `Email '${updateUserDto.email}' already exist`,
-          HttpStatus.CONFLICT,
-        );
-    }
     if (updateUserDto.password) {
       const hashedPassword = await bcrypt.hash(updateUserDto.password, 10);
       updateUserDto.password = hashedPassword;
@@ -95,7 +104,7 @@ export class UsersService {
     if (updateUserDto.avatar) {
       await this.filesService.create(updateUserDto.avatar);
     }
-    await this.userRepository.update(id, updateUserDto);
+    await this.userRepository.update(userId, updateUserDto);
     if (updateUserDto.avatar)
       if (checkUserWithId.avatar) {
         await this.destroyRelationWithFile(checkUserWithId.avatar.fileName);
@@ -103,23 +112,23 @@ export class UsersService {
     return;
   }
 
-  async disable(id: string): Promise<UpdateResult> {
+  async disable(userId: string): Promise<UpdateResult> {
     const checkUserWithId = await this.userRepository.findOne({
-      where: { id },
+      where: [{ id: userId }],
     });
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
-    await this.userRepository.update(id, { isDisabled: true });
+    await this.userRepository.update(userId, { isDisabled: true });
     return;
   }
 
-  async restore(id: string): Promise<UpdateResult> {
+  async restore(userId: string): Promise<UpdateResult> {
     const checkUser = await this.userRepository.findOne({
-      where: { id },
+      where: [{ id: userId }],
     });
     if (!checkUser)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
-    await this.userRepository.update(id, { isDisabled: false });
+    await this.userRepository.update(userId, { isDisabled: false });
     return;
   }
 
@@ -128,16 +137,19 @@ export class UsersService {
     return;
   }
 
-  async destroy(id: string, currentUser: IAuthCookie): Promise<DeleteResult> {
-    const checkUserWithId = await this.findById(id);
+  async destroy(
+    userId: string,
+    currentUser: IAuthCookie,
+  ): Promise<DeleteResult> {
+    const checkUserWithId = await this.findById(userId);
     if (!checkUserWithId)
       throw new HttpException('User does not exist', HttpStatus.BAD_REQUEST);
-    if (currentUser.id !== id)
+    if (currentUser.id !== userId)
       throw new HttpException(
         'Do not have permission to access this resource',
         HttpStatus.FORBIDDEN,
       );
-    await this.userRepository.delete(id);
+    await this.userRepository.delete(userId);
     if (checkUserWithId.avatar) {
       const fileName = checkUserWithId.avatar.fileName;
       await this.filesService.destroy(fileName);

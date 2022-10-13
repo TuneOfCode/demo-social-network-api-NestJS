@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -9,16 +10,16 @@ import * as fs from 'fs';
 import { join } from 'path';
 import { env, storageOfUploadFile } from 'src/configs/common.config';
 import { getLinkPreview } from 'src/helpers/common.helper';
+import { FriendRequestService } from 'src/modules/users/services/friend-request.service';
+import { UsersService } from 'src/modules/users/services/users.service';
 import { DeleteResult, In, Repository, UpdateResult } from 'typeorm';
-import { IAuthCookie } from '../../auth/interfaces/auth.interface';
-import { FilesService } from '../../files/services/files.service';
 import { IFile } from '../../files/interfaces/file.interface';
+import { FilesService } from '../../files/services/files.service';
 import { ILinkPreview } from '../../links-preview/interfaces/links-preview.interface';
 import { LinksPreviewService } from '../../links-preview/services/links-preview.service';
 import { Pagination } from '../../paginations/index.pagination';
 import { IPaginationOptions } from '../../paginations/interfaces/options.interface';
 import { IUser } from '../../users/interfaces/user.interface';
-import { UsersService } from 'src/modules/users/services/users.service';
 import { CreatePostDto, UpdatePostDto } from '../dto/post.dto';
 import { PostEntity } from '../entities/post.entity';
 import { EMode } from '../interfaces/post.interface';
@@ -29,6 +30,7 @@ export class PostsService {
     @InjectRepository(PostEntity)
     private readonly postsRepository: Repository<PostEntity>,
     private readonly usersService: UsersService,
+    private readonly friendRequestService: FriendRequestService,
     private readonly filesService: FilesService,
     private readonly linksPreviewService: LinksPreviewService,
   ) {}
@@ -81,30 +83,13 @@ export class PostsService {
         await this.filesService.create(files[i]);
       }
     }
-    // // Tách ra ra 1 api riêng để post nhanh hơn
-    // if (createPostDto.text) {
-    //   const linkPreview = await getLinkPreview(createPostDto.text);
-    //   if (linkPreview.url && Object.keys(linkPreview.data).length > 0) {
-    //     const newLink: ILinkPreview = {
-    //       url: linkPreview.url,
-    //       title: linkPreview.data.title,
-    //       description: linkPreview.data.description,
-    //       thumbnail: linkPreview.data.img,
-    //       linkIframe: linkPreview.data.linkIframe,
-    //     };
-    //     const newLinkCreated = await this.linksPreviewService.create(newLink);
-    //     createPostDto.link = {
-    //       ...newLink,
-    //       id: newLinkCreated.id,
-    //     };
-    //   }
-    // }
+
     const newPost = await this.postsRepository.create(createPostDto);
     return await this.postsRepository.save(newPost);
   }
 
-  async putLinkPreviewIntoPost(id: string) {
-    const checkPostWithId = await this.findById(id);
+  async putLinkPreviewIntoPost(postId: string) {
+    const checkPostWithId = await this.findById(postId);
     if (checkPostWithId.text && !checkPostWithId.link) {
       const linkPreview = await getLinkPreview(checkPostWithId.text);
       if (linkPreview.url && Object.keys(linkPreview.data).length > 0) {
@@ -116,7 +101,7 @@ export class PostsService {
           linkIframe: linkPreview.data.linkIframe,
         };
         const newLinkCreated = await this.linksPreviewService.create(newLink);
-        await this.postsRepository.update(id, {
+        await this.postsRepository.update(postId, {
           link: {
             ...newLink,
             id: newLinkCreated.id,
@@ -152,7 +137,7 @@ export class PostsService {
           id: newLinkCreated.id,
         };
       }
-      await this.postsRepository.update(id, { link: linkInPostDto });
+      await this.postsRepository.update(postId, { link: linkInPostDto });
     }
     return;
   }
@@ -178,9 +163,22 @@ export class PostsService {
     });
   }
 
-  async findAllByModePublicFriends(): Promise<PostEntity[]> {
+  async findAllByModePublicFriendsOfUser(
+    currentId: string,
+    authorId: string,
+  ): Promise<PostEntity[]> {
+    const isFriend = await this.friendRequestService.isFriend(
+      currentId,
+      authorId,
+    );
+    if (!isFriend) throw new ForbiddenException('Not friend');
     return await this.postsRepository.find({
-      where: { mode: EMode.PUBLIC_FRIENDS },
+      where: [
+        {
+          author: { id: authorId },
+          mode: EMode.PUBLIC_FRIENDS,
+        },
+      ],
       order: {
         createdAt: 'DESC',
         updatedAt: 'DESC',
@@ -188,46 +186,67 @@ export class PostsService {
     });
   }
 
-  async findById(id: string): Promise<PostEntity> {
+  async findByIdAndModePublic(postId: string): Promise<PostEntity> {
     const checkPostWithId = await this.postsRepository.findOne({
-      // where: { id, mode: In([EMode.PUBLIC_EVERYONE, EMode.PUBLIC_FRIENDS]) },
       where: [
-        { id: id },
-        { mode: In([EMode.PUBLIC_EVERYONE, EMode.PUBLIC_FRIENDS]) },
+        { id: postId, mode: In([EMode.PUBLIC_EVERYONE, EMode.PUBLIC_FRIENDS]) },
       ],
-      relations: ['author', 'link', 'mediaFiles'],
+      relations: ['link', 'mediaFiles', 'author', 'comments', 'emotions'],
     });
     if (!checkPostWithId)
       throw new HttpException('Post does not found', HttpStatus.NOT_FOUND);
-    delete checkPostWithId.authorId;
-    delete checkPostWithId.linkId;
-    delete checkPostWithId.author.password;
-    delete checkPostWithId.files;
+
+    delete checkPostWithId?.linkId;
+    delete checkPostWithId?.files;
+    delete checkPostWithId?.authorId;
+    delete checkPostWithId?.author.password;
+    delete checkPostWithId?.commentIds;
+    delete checkPostWithId?.emotionIds;
     return checkPostWithId;
   }
 
-  async findByIdWithModePublicEveryone(id: string): Promise<PostEntity> {
+  async findById(postId: string): Promise<PostEntity> {
     const checkPostWithId = await this.postsRepository.findOne({
-      where: { id, mode: In([EMode.PUBLIC_EVERYONE]) },
-      relations: ['author', 'link', 'mediaFiles'],
+      where: [{ id: postId }],
+      relations: ['link', 'mediaFiles', 'author', 'comments', 'emotions'],
     });
     if (!checkPostWithId)
       throw new HttpException('Post does not found', HttpStatus.NOT_FOUND);
-    delete checkPostWithId.authorId;
-    delete checkPostWithId.linkId;
-    delete checkPostWithId.author.password;
-    delete checkPostWithId.files;
+
+    delete checkPostWithId?.linkId;
+    delete checkPostWithId?.files;
+    delete checkPostWithId?.authorId;
+    delete checkPostWithId?.author.password;
+    delete checkPostWithId?.commentIds;
+    delete checkPostWithId?.emotionIds;
+    return checkPostWithId;
+  }
+
+  async findByIdWithModePublicEveryone(postId: string): Promise<PostEntity> {
+    const checkPostWithId = await this.postsRepository.findOne({
+      where: [{ id: postId, mode: In([EMode.PUBLIC_EVERYONE]) }],
+      relations: ['link', 'mediaFiles', 'author', 'comments', 'emotions'],
+    });
+    if (!checkPostWithId)
+      throw new HttpException('Post does not found', HttpStatus.NOT_FOUND);
+
+    delete checkPostWithId?.linkId;
+    delete checkPostWithId?.files;
+    delete checkPostWithId?.authorId;
+    delete checkPostWithId?.author.password;
+    delete checkPostWithId?.commentIds;
+    delete checkPostWithId?.emotionIds;
 
     return checkPostWithId;
   }
 
   async update(
-    id: string,
+    postId: string,
     updatePostDto: UpdatePostDto,
     user: IUser,
     files: IFile[],
   ): Promise<UpdateResult> {
-    const checkPostWithId = await this.findById(id);
+    const checkPostWithId = await this.findById(postId);
     if (!checkPostWithId)
       throw new HttpException('Post does not exist', HttpStatus.BAD_REQUEST);
 
@@ -246,7 +265,7 @@ export class PostsService {
       await this.postsRepository
         .createQueryBuilder()
         .relation(PostEntity, 'mediaFiles')
-        .of(id)
+        .of(postId)
         .addAndRemove(files, checkPostWithId.mediaFiles);
       const oldFilesInPost = checkPostWithId.mediaFiles;
       for (let i = 0; i < Object.keys(oldFilesInPost).length; i++) {
@@ -266,49 +285,15 @@ export class PostsService {
       }
     }
 
-    // // thay thế để update nhanh hơn, cập nhật link preview qua api khác
-    // if (updatePostDto.text) {
-    //   const linkPreview = await getLinkPreview(updatePostDto.text);
-    //   if (linkPreview.url && Object.keys(linkPreview.data).length > 0) {
-    //     let newLink: ILinkPreview = {
-    //       url: linkPreview.url || null,
-    //       title: linkPreview.data.title || null,
-    //       description: linkPreview.data.description || null,
-    //       thumbnail: linkPreview.data.img || null,
-    //       linkIframe: linkPreview.data.linkIframe || null,
-    //     };
-
-    //     if (checkPostWithId.link !== null) {
-    //       await this.linksPreviewService.update(
-    //         checkPostWithId.link.id,
-    //         newLink,
-    //       );
-    //       updatePostDto.link = {
-    //         ...newLink,
-    //         id: checkPostWithId.link.id,
-    //       };
-    //     } else {
-    //       const newLinkCreated = await this.linksPreviewService.create(newLink);
-    //       updatePostDto.link = {
-    //         ...newLink,
-    //         id: newLinkCreated.id,
-    //       };
-    //     }
-    //   } else {
-    //     updatePostDto.link = null;
-    //   }
-    // }
-
-    await this.postsRepository.update(id, updatePostDto);
-
+    await this.postsRepository.update(postId, updatePostDto);
     return;
   }
 
-  async destroy(id: string): Promise<DeleteResult> {
-    const checkPostWithId = await this.findById(id);
+  async destroy(postId: string): Promise<DeleteResult> {
+    const checkPostWithId = await this.findById(postId);
     if (!checkPostWithId)
       throw new HttpException('Post does not exist', HttpStatus.BAD_REQUEST);
-    await this.postsRepository.delete(id);
+    await this.postsRepository.delete(postId);
     if (checkPostWithId.link) {
       await this.linksPreviewService.destroy(checkPostWithId.link.id);
     }

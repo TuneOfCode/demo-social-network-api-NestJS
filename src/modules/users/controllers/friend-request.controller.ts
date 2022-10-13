@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -25,7 +26,10 @@ export class FriendRequestController {
   constructor(private readonly friendRequestService: FriendRequestService) {}
 
   @Post('sent/:receiverId')
-  async sent(@Param('receiverId') receiverId: string, @Req() request: Request) {
+  async sent(
+    @Param('receiverId', new ParseUUIDPipe()) receiverId: string,
+    @Req() request: Request,
+  ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     return await this.friendRequestService.sent(currentUser.id, receiverId);
   }
@@ -36,34 +40,40 @@ export class FriendRequestController {
     return await this.friendRequestService.findAll();
   }
 
-  @Patch('received/:uuid')
+  @Patch('received/:senderId')
   edit(
-    @Param('uuid') uuid: string,
+    @Param('senderId', new ParseUUIDPipe()) senderId: string,
     @Body() updateFriendRequestDto: UpdateFriendRequestDto,
     @Req() request: Request,
   ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     return this.friendRequestService.update(
-      uuid,
+      senderId,
       updateFriendRequestDto,
       currentUser,
     );
   }
 
   @Patch('accept/:receiverId')
-  accept(@Param('receiverId') receiverId: string, @Req() request: Request) {
+  accept(
+    @Param('receiverId', new ParseUUIDPipe()) receiverId: string,
+    @Req() request: Request,
+  ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     return this.friendRequestService.accept(currentUser.id, receiverId);
   }
 
   @Patch('cancel/:receiverId')
-  cancel(@Param('receiverId') receiverId: string, @Req() request: Request) {
+  cancel(
+    @Param('receiverId', new ParseUUIDPipe()) receiverId: string,
+    @Req() request: Request,
+  ) {
     const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     return this.friendRequestService.cancel(currentUser.id, receiverId);
   }
 
   @Delete('destroy/:id')
-  destroy(@Param('id') id: string) {
+  destroy(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.friendRequestService.destroy(id);
   }
 }

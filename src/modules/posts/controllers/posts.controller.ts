@@ -7,6 +7,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -26,13 +27,13 @@ import { CurrentUser } from '../../auth/decorator/user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt.guard';
 import { IAuthCookie } from '../../auth/interfaces/auth.interface';
 import { CreateFileDto, UpdateFileDto } from '../../files/dto/file.dto';
-import { FilesService } from '../../files/services/files.service';
 import { IFile } from '../../files/interfaces/file.interface';
+import { FilesService } from '../../files/services/files.service';
 import { IUser } from '../../users/interfaces/user.interface';
 
+import { UsersService } from 'src/modules/users/services/users.service';
 import { CreatePostDto, UpdatePostDto } from '../dto/post.dto';
 import { PostsService } from '../services/posts.service';
-import { UsersService } from 'src/modules/users/services/users.service';
 
 @Controller('posts')
 export class PostsController {
@@ -112,26 +113,28 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('public-to-friends')
-  async findAllByModePublicFriends(
+  @Get('public-to-friends/:authorId')
+  async findAllByModePublic(
+    @Req() request: Request,
+    @Param('authorId', new ParseUUIDPipe()) authorId: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
     if (!page && !limit)
-      return await this.postsService.findAllByModePublicFriends();
+      return await this.postsService.findAllByModePublicFriendsOfUser(
+        currentUser.id,
+        authorId,
+      );
     return await this.postsService.paginate({
       page: page ? +page : 1,
       limit: limit ? +limit : 2,
     });
   }
 
-  @Get('detail/:uuid')
-  async findById(@Req() request: Request, @Param('uuid') uuid: string) {
-    // const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
-    // if (currentUser && currentUser.id) {
-    //   return await this.postsService.findById(uuid);
-    // }
-    return await this.postsService.findById(uuid);
+  @Get('detail/:postId')
+  async findById(@Param('postId', new ParseUUIDPipe()) postId: string) {
+    return await this.postsService.findById(postId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -154,7 +157,7 @@ export class PostsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('edit/:uuid')
+  @Patch('edit/:postId')
   @UseInterceptors(
     CustomFileInterceptor({
       typeUpload: 'multiple',
@@ -166,19 +169,17 @@ export class PostsController {
     }),
   )
   async edit(
-    @Param('uuid') uuid: string,
+    @Param('postId', new ParseUUIDPipe()) postId: string,
+    @Req() request: Request,
     @Body() updatePostDto: UpdatePostDto,
-    @CurrentUser() currentUser: IUser,
     @UploadedFiles() files: any,
   ) {
-    let user: IUser;
-    if (currentUser && currentUser?.email) {
-      user = await this.usersService.findByEmail(currentUser?.email);
-    }
-    const checkPostWithId = await this.postsService.findById(uuid);
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
+    const user: IUser = await this.usersService.findById(currentUser.id);
+    const checkPostWithId = await this.postsService.findById(postId);
     console.log('checkPostWithId.author.id: ', checkPostWithId.author.id);
-    console.log('user.id: ', user.id);
-    if (checkPostWithId.author.id !== user.id)
+    console.log('user.id: ', currentUser.id);
+    if (checkPostWithId.author.id !== currentUser.id)
       throw new ForbiddenException(
         'Not authorized because not the author of this post',
       );
@@ -201,32 +202,48 @@ export class PostsController {
     delete user.password;
     console.log('new files length: ', newFiles.length);
     if (newFiles.length <= 0) newFiles = [];
-    return await this.postsService.update(uuid, updatePostDto, user, newFiles);
+    return await this.postsService.update(
+      postId,
+      updatePostDto,
+      user,
+      newFiles,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch('edit/link-preview/:uuid')
-  async editLinkPreview(@Param('uuid') uuid: string) {
-    return await this.postsService.putLinkPreviewIntoPost(uuid);
+  @Patch('edit/link-preview/:postId')
+  async editLinkPreview(
+    @Param('postId', new ParseUUIDPipe()) postId: string,
+    @Req() request: Request,
+  ) {
+    const currentUser: IAuthCookie = decoded(request.cookies[env.JWT_COOKIE]);
+    const checkPostWithId = await this.postsService.findById(postId);
+    console.log('checkPostWithId.author.id: ', checkPostWithId.author.id);
+    console.log('user.id: ', currentUser.id);
+    if (checkPostWithId.author.id !== currentUser.id)
+      throw new ForbiddenException(
+        'Not authorized because not the author of this post',
+      );
+    return await this.postsService.putLinkPreviewIntoPost(postId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Delete('destroy/:uuid')
+  @Delete('destroy/:postId')
   async destroy(
-    @Param('uuid') uuid: string,
+    @Param('postId', new ParseUUIDPipe()) postId: string,
     @CurrentUser() currentUser: IUser,
   ) {
     let user: IUser;
     if (currentUser && currentUser?.email) {
       user = await this.usersService.findByEmail(currentUser?.email);
     }
-    const checkPostWithId = await this.postsService.findById(uuid);
+    const checkPostWithId = await this.postsService.findById(postId);
     console.log('checkPostWithId.author.id: ', checkPostWithId.author.id);
     console.log('user.id: ', user.id);
     if (checkPostWithId.author.id !== user.id)
       throw new ForbiddenException(
         'Not authorized because not the author of this post',
       );
-    return await this.postsService.destroy(uuid);
+    return await this.postsService.destroy(postId);
   }
 }

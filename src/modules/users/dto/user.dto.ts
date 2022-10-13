@@ -1,5 +1,11 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { IFile } from 'src/modules/files/interfaces/file.interface';
 import { IUser } from '../interfaces/user.interface';
 
@@ -19,15 +25,14 @@ export class CreateUserDto implements IUser {
   avatar?: IFile;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) implements IUser {
+export class UpdateUserDto extends PartialType(CreateUserDto) {
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   fullname: string;
 
-  @IsEmail()
-  email: string;
-
+  @IsOptional()
   @IsString()
   @MinLength(5)
   password: string;
